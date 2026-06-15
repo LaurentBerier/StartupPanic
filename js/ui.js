@@ -4,9 +4,9 @@
  */
 
 import {
-  CONFIG, ROLES, PERSONALITIES, FUNDING_ROUNDS,
+  CONFIG, ROLES, PERSONALITIES, FUNDING_ROUNDS, FACILITIES, RESEARCH, OFFICE_TIERS, LOANS,
   getPitchBuzzwords, buildPitchSentence, estimatePitch,
-  generateCandidates, generateProductChoices,
+  generateCandidates, generateProductChoices, getModifiers,
   getMRR, getBurnRate, getNetCashFlow, getRunwaySeconds, getValuation,
   getTeamDevPower, getGlitchLevel, fmtMoney,
 } from './gameLogic.js';
@@ -74,11 +74,11 @@ export function initHUD() {
   hud.devPower       = document.getElementById('dev-team-power');
 
   hud.cdLabels = {
-    launch:   document.getElementById('cd-launch'),
     pitch:    document.getElementById('cd-pitch'),
     caffeine: document.getElementById('cd-caffeine'),
     pivot:    document.getElementById('cd-pivot'),
   };
+  hud.launchReady = document.getElementById('cd-launch-product');
 }
 
 export function showHUD() {
@@ -97,6 +97,7 @@ export function updateHUD(state) {
 
   // Cash + net flow
   hud.cashValue.textContent = fmtMoney(state.cash);
+  hud.cashValue.classList.toggle('cash-negative', state.cash < 0);
   const net = getNetCashFlow(state);
   const mrr = getMRR(state);
   const burn = getBurnRate(state);
@@ -138,17 +139,31 @@ export function updateHUD(state) {
   }
 
   // Cooldown labels
-  updateCooldownLabel('launch',   state.cooldowns.launch);
   updateCooldownLabel('pitch',    state.cooldowns.pitch);
   updateCooldownLabel('caffeine', state.cooldowns.caffeine);
   updateCooldownLabel('pivot',    state.cooldowns.pivot);
+
+  // Launch-product button shows how many products are ready to launch
+  if (hud.launchReady) {
+    const n = state.readyProducts.length;
+    hud.launchReady.textContent = n > 0 ? `${n} READY` : 'NONE';
+    hud.launchReady.classList.toggle('ready', n > 0);
+    hud.launchReady.classList.toggle('on-cooldown', n === 0);
+  }
+
+  // Develop button shows whether you're seated at your desk
+  const devCd = document.getElementById('cd-develop');
+  if (devCd) {
+    devCd.textContent = state.founderAtDesk ? 'AT DESK' : 'GO TO DESK';
+    devCd.classList.toggle('ready', !!state.founderAtDesk);
+    devCd.classList.toggle('on-cooldown', !state.founderAtDesk);
+  }
 
   // Glitch overlay
   updateGlitchOverlay(state);
 }
 
 const CD_BUTTON_IDS = {
-  launch:   'btn-launch-feature',
   pitch:    'btn-vc-pitch',
   caffeine: 'btn-caffeinate',
   pivot:    'btn-pivot',
@@ -280,8 +295,61 @@ export function clearAllEventCards() {
   activeEventCards.clear();
 }
 
+// ─── Central Warning Alert (one elegant, animated, funny alert) ───────────────
+const ALERT_HEADERS = [
+  '⚠ MILD CATASTROPHE', '⚠ DISRUPTION REQUIRED', "⚠ THAT'S NOT HOW MONEY WORKS",
+  '⚠ HOUSTON, A PROBLEM', '⚠ UNSCHEDULED CHAOS', "⚠ THE BOARD WON'T LIKE THIS",
+  '⚠ SLIGHT EXISTENTIAL ISSUE', '⚠ A LEARNING OPPORTUNITY',
+];
+function alertHint(msg) {
+  const m = msg.toLowerCase();
+  if (m.includes('sit')) return '🪑 Walk over and sit at your desk.';
+  if (m.includes('free desk') || m.includes('no free')) return '🛠 Build a desk in CONSTRUCTION, then hire.';
+  if (m.includes('server')) return '🗄️ Replace it in CONSTRUCTION before productivity tanks.';
+  if (m.includes('locked') || m.includes('research') || m.includes('tier')) return '🔬 Unlock it in RESEARCH first.';
+  if (m.includes('cooldown')) return '⏳ Patience — even disruption has a cooldown.';
+  if (m.includes('ready') || m.includes('develop')) return '📦 Develop a product first (DEVELOP PRODUCT).';
+  if (m.includes('desk')) return '🪑 Build a desk, or walk to yours.';
+  if (m.includes('need') || m.includes('afford') || m.includes('cash') || m.includes('$')) return '💸 Launch a product for revenue. Or manifest it.';
+  if (m.includes('hype')) return '📣 Launch a product to spike Hype.';
+  return '💡 Have you tried turning the startup off and on again?';
+}
+let _alertTimer = null;
+let _alertSticky = false;
+export function showAlert(message, opts = {}) {
+  const el = document.getElementById('central-alert');
+  if (!el) return;
+  if (_alertSticky && !opts.sticky) return; // a sticky (fire) alert owns the screen
+  const header = opts.header || ALERT_HEADERS[Math.floor(Math.random() * ALERT_HEADERS.length)];
+  const hint   = opts.hint != null ? opts.hint : alertHint(message);
+  el.innerHTML = `
+    <div class="ca-icon">${opts.icon || '⚠'}</div>
+    <div class="ca-body">
+      <div class="ca-header">${header}</div>
+      <div class="ca-msg">${message}</div>
+      ${hint ? `<div class="ca-hint">${hint}</div>` : ''}
+    </div>`;
+  el.classList.toggle('ca-sticky', !!opts.sticky);
+  el.classList.remove('hidden', 'ca-in');
+  void el.offsetWidth; // restart animation
+  el.classList.add('ca-in');
+  clearTimeout(_alertTimer);
+  _alertSticky = !!opts.sticky;
+  if (!opts.sticky) _alertTimer = setTimeout(() => el.classList.add('hidden'), 4200);
+}
+
+export function clearAlert() {
+  _alertSticky = false;
+  clearTimeout(_alertTimer);
+  const el = document.getElementById('central-alert');
+  if (el) el.classList.add('hidden');
+}
+
 // ─── Toast Notifications ──────────────────────────────────────────────────────
+// Warnings/errors are funnelled into the single central alert; info/success
+// stay as small toasts.
 export function showToast(message, type = 'info', duration = 3000) {
+  if (type === 'warning' || type === 'error') { showAlert(message); return; }
   if (!hud.toastContainer) return;
 
   const toast = document.createElement('div');
@@ -358,12 +426,23 @@ export function openBuildModal(state, onBuy, onClose) {
   if (!modal || !list) return;
 
   const desksUsed     = state.desks.length;
-  const desksMax      = CONFIG.DESK_SLOTS;
+  const desksMax      = state.deskSlots;
   const noComputer    = state.desks.filter(d => !d.hasComputer).length;
   const canBuyDesk    = desksUsed < desksMax && state.cash >= CONFIG.DESK_COST;
   const canBuyComp    = noComputer > 0 && state.cash >= CONFIG.COMPUTER_COST;
+  const nextTier      = OFFICE_TIERS[state.officeTier + 1];
 
   list.innerHTML = `
+    <div class="build-card">
+      <div class="build-icon">🏗️</div>
+      <div class="build-info">
+        <div class="build-name">OFFICE · ${OFFICE_TIERS[state.officeTier].name}</div>
+        <div class="build-desc">${nextTier ? `Expand to ${nextTier.name} — ${nextTier.slots} desk slots.` : 'Maximum office size reached.'}</div>
+      </div>
+      <button id="btn-expand-office" class="btn btn-primary btn-sm" ${nextTier && state.cash >= nextTier.cost ? '' : 'disabled'}>
+        ${nextTier ? fmtMoney(nextTier.cost) : 'MAX'}
+      </button>
+    </div>
     <div class="build-card">
       <div class="build-icon">🪑</div>
       <div class="build-info">
@@ -386,6 +465,30 @@ export function openBuildModal(state, onBuy, onClose) {
     </div>
   `;
 
+  const expandBtn = document.getElementById('btn-expand-office');
+  if (expandBtn) expandBtn.onclick = () => { modal.classList.add('hidden'); onBuy('expand'); };
+
+  // ── Server status (replace racks destroyed by fire) ──
+  const down    = (state.rackDown || []).filter(d => d).length;
+  const working = CONFIG.NUM_RACKS - down;
+  const serverCard = document.createElement('div');
+  serverCard.className = 'build-card' + (down > 0 ? ' build-locked' : ' build-owned');
+  serverCard.innerHTML = `
+    <div class="build-icon">🗄️</div>
+    <div class="build-info">
+      <div class="build-name">SERVERS · ${working}/${CONFIG.NUM_RACKS} ONLINE</div>
+      <div class="build-desc">${down > 0
+        ? 'A server burned down — dev speed & MRR are throttled until you replace it.'
+        : 'All servers humming. Click fires fast to keep them alive.'}</div>
+    </div>
+    ${down > 0
+      ? `<button class="btn btn-primary btn-sm srv-buy" ${state.cash >= CONFIG.SERVER_COST ? '' : 'disabled'}>${fmtMoney(CONFIG.SERVER_COST)}</button>`
+      : '<button class="btn btn-ghost btn-sm" disabled>ONLINE</button>'}
+  `;
+  const srvBtn = serverCard.querySelector('.srv-buy');
+  if (srvBtn) srvBtn.addEventListener('click', () => { modal.classList.add('hidden'); onBuy('server'); });
+  list.insertBefore(serverCard, list.firstChild);
+
   document.getElementById('btn-buy-desk').onclick = () => {
     modal.classList.add('hidden');
     onBuy('desk');
@@ -394,6 +497,55 @@ export function openBuildModal(state, onBuy, onClose) {
     modal.classList.add('hidden');
     onBuy('computer');
   };
+
+  // ── Facilities: devices + rooms ──
+  const mods = getModifiers(state);
+  const section = (label) => {
+    const h = document.createElement('div');
+    h.className = 'build-section-label';
+    h.textContent = label;
+    list.appendChild(h);
+  };
+  const addFacilityCards = (kind) => {
+    for (const f of FACILITIES.filter(x => x.kind === kind)) {
+      const owned  = state.facilities.includes(f.id);
+      const locked = f.tier > mods.tierUnlocked;
+      const lvl    = (state.facilityLevels && state.facilityLevels[f.id]) || 1;
+      const card = document.createElement('div');
+      card.className = 'build-card' + (owned ? ' build-owned' : '') + (locked ? ' build-locked' : '');
+      let btn;
+      if (owned) {
+        if (lvl >= CONFIG.FACILITY_MAX_LEVEL) {
+          btn = `<button class="btn btn-ghost btn-sm" disabled>Lv ${lvl} · MAX</button>`;
+        } else {
+          const upCost = Math.round(f.cost * lvl * 0.9);
+          btn = `<button class="btn btn-primary btn-sm fac-up" ${state.cash >= upCost ? '' : 'disabled'}>Lv ${lvl} → ${fmtMoney(upCost)}</button>`;
+        }
+      } else if (locked) {
+        btn = `<button class="btn btn-ghost btn-sm" disabled>🔒 TIER ${f.tier}</button>`;
+      } else {
+        btn = `<button class="btn btn-primary btn-sm fac-buy" ${state.cash >= f.cost ? '' : 'disabled'}>${fmtMoney(f.cost)}</button>`;
+      }
+      card.innerHTML = `
+        <div class="build-icon">${f.icon}</div>
+        <div class="build-info">
+          <div class="build-name">${f.name} ${owned ? `<span class="accent-cyan">· Lv ${lvl}</span>` : ''}</div>
+          <div class="build-desc">${f.desc}${f.upkeep ? ` <span class="build-upkeep">(${fmtMoney(f.upkeep * lvl)}/s upkeep)</span>` : ''}</div>
+        </div>
+        ${btn}
+      `;
+      const buyBtn = card.querySelector('.fac-buy');
+      if (buyBtn) buyBtn.addEventListener('click', () => { modal.classList.add('hidden'); onBuy(f.id); });
+      const upBtn = card.querySelector('.fac-up');
+      if (upBtn) upBtn.addEventListener('click', () => { modal.classList.add('hidden'); onBuy('upgrade:' + f.id); });
+      list.appendChild(card);
+    }
+  };
+  section('DEVICES');
+  addFacilityCards('Device');
+  section(mods.tierUnlocked >= 2 ? 'ROOMS' : 'ROOMS · research "Facilities Permit" to unlock');
+  addFacilityCards('Room');
+
   document.getElementById('btn-close-build').onclick = () => {
     modal.classList.add('hidden');
     onClose();
@@ -402,54 +554,244 @@ export function openBuildModal(state, onBuy, onClose) {
   modal.classList.remove('hidden');
 }
 
+// ─── Bank Loan Modal ────────────────────────────────────────────────────────────
+export function openLoanModal(state, onTake, onClose) {
+  const modal = document.getElementById('loan-modal');
+  const list  = document.getElementById('loan-options');
+  const note  = document.getElementById('loan-note');
+  if (!modal || !list) return;
+
+  note.innerHTML = `Cash: <b class="${state.cash < 0 ? 'accent-error' : 'accent-cyan'}">${fmtMoney(state.cash)}</b> · `
+    + `Debt: <b class="accent-error">${fmtMoney(state.debt)}</b> · `
+    + `Interest: <b class="accent-error">${fmtMoney(state.loanBurn)}/s</b>. `
+    + `Bankrupt below <b class="accent-error">${fmtMoney(CONFIG.DEBT_LIMIT)}</b>.`;
+
+  list.innerHTML = '';
+  for (const loan of LOANS) {
+    const card = document.createElement('div');
+    card.className = 'build-card';
+    card.innerHTML = `
+      <div class="build-icon">${loan.icon}</div>
+      <div class="build-info">
+        <div class="build-name">${loan.name} <span class="accent-cyan">+${fmtMoney(loan.cash)} now</span></div>
+        <div class="build-desc">${loan.desc}</div>
+      </div>
+      <button class="btn btn-primary btn-sm loan-take">BORROW</button>
+    `;
+    card.querySelector('.loan-take').addEventListener('click', () => { modal.classList.add('hidden'); onTake(loan.id); });
+    list.appendChild(card);
+  }
+
+  document.getElementById('btn-close-loan').onclick = () => { modal.classList.add('hidden'); onClose(); };
+  modal.classList.remove('hidden');
+}
+
+// ─── Peddler Offer Modal ─────────────────────────────────────────────────────────
+export function openPeddlerModal(state, deal, onAccept, onDecline) {
+  const modal = document.getElementById('peddler-modal');
+  const body  = document.getElementById('peddler-body');
+  if (!modal || !body) return;
+
+  const strings = [];
+  if (deal.cash) strings.push(`<span class="accent-cyan">+${fmtMoney(deal.cash)} cash</span>`);
+  if (deal.debt) strings.push(`<span class="accent-error">+${fmtMoney(deal.debt)} debt</span>`);
+  if (deal.hype) strings.push(`<span class="${deal.hype > 0 ? 'accent-magenta' : 'accent-error'}">${deal.hype > 0 ? '+' : ''}${deal.hype} Hype</span>`);
+
+  body.innerHTML = `
+    <div class="peddler-figure">🧥</div>
+    <div class="peddler-text">"${deal.text}"</div>
+    <div class="peddler-terms">${strings.join(' · ')}</div>
+  `;
+
+  document.getElementById('btn-peddler-accept').onclick = () => { modal.classList.add('hidden'); onAccept(deal); };
+  document.getElementById('btn-peddler-decline').onclick = () => { modal.classList.add('hidden'); onDecline(); };
+  modal.classList.remove('hidden');
+}
+
+// ─── Research / Tech Modal ──────────────────────────────────────────────────────
+export function openResearchModal(state, onResearch, onClose) {
+  const modal = document.getElementById('research-modal');
+  const list  = document.getElementById('research-options');
+  const note  = document.getElementById('research-note');
+  if (!modal || !list) return;
+
+  note.textContent = `Burn cash on deeply questionable R&D — each unlock makes your products weirder & more lucrative. War chest: ${fmtMoney(state.cash)}.`;
+  list.innerHTML = '';
+
+  const tiers = [...new Set(RESEARCH.map(r => r.tier))].sort();
+  for (const tier of tiers) {
+    const h = document.createElement('div');
+    h.className = 'build-section-label';
+    h.textContent = `TIER ${tier}`;
+    list.appendChild(h);
+
+    for (const node of RESEARCH.filter(r => r.tier === tier)) {
+      const done   = state.research.includes(node.id);
+      const locked = node.req.some(r => !state.research.includes(r));
+      const canAfford = state.cash >= node.cost;
+      const reqNames = node.req.map(r => (RESEARCH.find(n => n.id === r) || {}).name).filter(Boolean).join(', ');
+      const card = document.createElement('div');
+      card.className = 'build-card research-card' + (done ? ' build-owned' : '') + (locked ? ' build-locked' : '');
+      let btn;
+      if (done)        btn = '<button class="btn btn-ghost btn-sm" disabled>DONE ✓</button>';
+      else if (locked) btn = `<button class="btn btn-ghost btn-sm" disabled>🔒 LOCKED</button>`;
+      else             btn = `<button class="btn btn-primary btn-sm res-buy" ${canAfford ? '' : 'disabled'}>${fmtMoney(node.cost)}</button>`;
+      card.innerHTML = `
+        <div class="build-icon">🔬</div>
+        <div class="build-info">
+          <div class="build-name">${node.name} ${done ? '<span class="accent-cyan">· researched</span>' : ''}</div>
+          <div class="build-desc">${node.desc}${locked && reqNames ? ` <span class="build-upkeep">needs: ${reqNames}</span>` : ''}</div>
+        </div>
+        ${btn}
+      `;
+      const buyBtn = card.querySelector('.res-buy');
+      if (buyBtn) buyBtn.addEventListener('click', () => { modal.classList.add('hidden'); onResearch(node.id); });
+      list.appendChild(card);
+    }
+  }
+
+  document.getElementById('btn-close-research').onclick = () => {
+    modal.classList.add('hidden');
+    onClose();
+  };
+
+  modal.classList.remove('hidden');
+}
+
 // ─── Develop Modal ────────────────────────────────────────────────────────────
+const escapeAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
 export function openDevelopModal(state, onPick, onClose) {
   const modal = document.getElementById('develop-modal');
   const list  = document.getElementById('product-choice-list');
   const note  = document.getElementById('develop-note');
   if (!modal || !list) return;
 
-  list.innerHTML = '';
+  const rerollBtn = document.getElementById('btn-reroll-products');
+  const building = !!state.activeProduct;
 
-  if (state.activeProduct) {
-    const ap = state.activeProduct;
-    const pct = Math.floor(Math.min(100, (ap.progress / ap.idea.devPoints) * 100));
-    note.textContent = `Already building ${ap.idea.name} (${pct}%). One absurd product at a time.`;
-  } else if (!state.employees.length) {
-    note.textContent = '⚠ You need at least one employee to build a product.';
-  } else {
+  const growTextarea = (ta) => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+
+  const renderChoices = () => {
+    list.innerHTML = '';
+    if (building) {
+      const ap = state.activeProduct;
+      const pct = Math.floor(Math.min(100, (ap.progress / ap.idea.devPoints) * 100));
+      note.textContent = `Already developing ${ap.idea.name} (${pct}%). Finish it before starting another.`;
+      return;
+    }
     const power = getTeamDevPower(state);
-    note.textContent = `Pick the next absurd product. Team dev speed: ${power.toFixed(1)}×`;
-
-    const ideas = generateProductChoices(state);
+    note.textContent = `Pick an idea, tweak its SCOPE, rename it, then develop. Dev speed: ${power.toFixed(1)}× — hire to go faster.`;
     const powerSafe = Math.max(power, 0.1);
-    for (const idea of ideas) {
-      const eta = Math.ceil(idea.devPoints / powerSafe);
+    let idx = 0;
+    for (const idea of generateProductChoices(state)) {
+      const base = { mrr: idea.mrr, hype: idea.hype, dev: idea.devPoints };
       const card = document.createElement('div');
       card.className = 'candidate-card product-card';
+      card.style.animationDelay = (idx++ * 0.07) + 's';
       card.innerHTML = `
-        <div class="candidate-header">
-          <div>
-            <div class="candidate-name">${idea.name}</div>
-            <div class="product-stats">
-              <span class="accent-cyan">+${fmtMoney(idea.mrr)}/s MRR</span> ·
-              <span class="accent-magenta">+${idea.hype} Hype</span> ·
-              ~${eta}s build
-            </div>
-          </div>
+        <div class="product-name-row">
+          <textarea class="product-name-input" maxlength="48" rows="1" spellcheck="false">${escapeAttr(idea.name)}</textarea>
+          <button class="product-dice" title="Randomize this idea">🎲</button>
         </div>
-        <div class="candidate-desc">${idea.desc}</div>
-        <button class="btn btn-primary btn-sm product-pick-btn">BUILD THIS</button>
+        <div class="product-tagline">${idea.desc}</div>
+        <div class="product-scope">
+          <span class="scope-label">SCOPE <span class="scope-val">1.0×</span></span>
+          <input type="range" class="scope-slider" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        <div class="product-stats">
+          <span class="accent-cyan stat-mrr">+${fmtMoney(idea.mrr)}/s MRR</span> ·
+          <span class="accent-magenta stat-hype">+${idea.hype} Hype</span> ·
+          <span class="stat-eta">~${Math.ceil(idea.devPoints / powerSafe)}s build</span>
+        </div>
+        <button class="btn btn-primary btn-sm product-pick-btn">DEVELOP THIS 🚀</button>
       `;
+      const ta = card.querySelector('.product-name-input');
+      const slider = card.querySelector('.scope-slider');
+      const dice = card.querySelector('.product-dice');
+      const applyScope = () => {
+        const sc = parseFloat(slider.value);
+        idea.mrr = Math.round(base.mrr * sc);
+        idea.hype = Math.max(1, Math.round(base.hype * sc));
+        idea.devPoints = Math.round(base.dev * sc);
+        card.querySelector('.scope-val').textContent = sc.toFixed(1) + '×';
+        card.querySelector('.stat-mrr').textContent = `+${fmtMoney(idea.mrr)}/s MRR`;
+        card.querySelector('.stat-hype').textContent = `+${idea.hype} Hype`;
+        card.querySelector('.stat-eta').textContent = `~${Math.ceil(idea.devPoints / powerSafe)}s build`;
+        card.querySelectorAll('.product-stats span').forEach(e => { e.classList.remove('stat-pulse'); void e.offsetWidth; e.classList.add('stat-pulse'); });
+      };
+      slider.addEventListener('input', applyScope);
+      ta.addEventListener('input', () => growTextarea(ta));
+      dice.addEventListener('click', () => {
+        const fresh = generateProductChoices(state)[0];
+        Object.assign(idea, { name: fresh.name, desc: fresh.desc, mrr: fresh.mrr, hype: fresh.hype, devPoints: fresh.devPoints, absurdity: fresh.absurdity });
+        base.mrr = idea.mrr; base.hype = idea.hype; base.dev = idea.devPoints;
+        slider.value = '1';
+        ta.value = idea.name; growTextarea(ta);
+        card.querySelector('.product-tagline').textContent = idea.desc;
+        applyScope();
+        dice.classList.remove('spin'); void dice.offsetWidth; dice.classList.add('spin');
+      });
       card.querySelector('.product-pick-btn').addEventListener('click', () => {
+        const custom = ta.value.trim().replace(/\s+/g, ' ');
+        if (custom) idea.name = custom;
         modal.classList.add('hidden');
         onPick(idea);
       });
       list.appendChild(card);
     }
+    // size each title textarea to show the full name (no clipping, wraps to N lines)
+    requestAnimationFrame(() => list.querySelectorAll('.product-name-input').forEach(growTextarea));
+  };
+
+  if (rerollBtn) {
+    rerollBtn.style.display = building ? 'none' : '';
+    rerollBtn.onclick = renderChoices; // randomize all three proposals
   }
+  renderChoices();
 
   document.getElementById('btn-close-develop').onclick = () => {
+    modal.classList.add('hidden');
+    onClose();
+  };
+
+  modal.classList.remove('hidden');
+}
+
+// ─── Launch Product Modal ───────────────────────────────────────────────────────
+export function openLaunchModal(state, onLaunch, onClose) {
+  const modal = document.getElementById('launch-modal');
+  const list  = document.getElementById('launch-options');
+  const note  = document.getElementById('launch-note');
+  if (!modal || !list) return;
+
+  list.innerHTML = '';
+
+  if (!state.readyProducts.length) {
+    note.textContent = 'Nothing ready to launch. Develop a product first — once it finishes building, launch it here to go live.';
+  } else {
+    note.textContent = `${state.readyProducts.length} product(s) ready. Launching makes them earn MRR and spikes Hype.`;
+    state.readyProducts.forEach((p, i) => {
+      const card = document.createElement('div');
+      card.className = 'candidate-card product-card';
+      card.innerHTML = `
+        <div class="candidate-name">${p.idea.name}</div>
+        <div class="product-tagline">${p.idea.desc}</div>
+        <div class="product-stats">
+          <span class="accent-cyan">+${fmtMoney(p.idea.mrr)}/s MRR</span> ·
+          <span class="accent-magenta">Hype burst</span>
+        </div>
+        <button class="btn btn-primary btn-sm product-launch-btn">🚀 LAUNCH</button>
+      `;
+      card.querySelector('.product-launch-btn').addEventListener('click', () => {
+        modal.classList.add('hidden');
+        onLaunch(i);
+      });
+      list.appendChild(card);
+    });
+  }
+
+  document.getElementById('btn-close-launch').onclick = () => {
     modal.classList.add('hidden');
     onClose();
   };

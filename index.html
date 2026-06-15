@@ -20,8 +20,15 @@
         <p class="logo-subtitle">A Satirical AI Startup Tycoon Simulator</p>
       </div>
       <div class="menu-description">
-        <p>You are the founder. The AI is sentient. The burn rate is real.<br/>
-        <em>Build desks. Hire weirdos. Ship absurdity. Raise to Series C.</em></p>
+        <p>You are the founder, in a garage, with one desk and a terrible idea.<br/>
+        <em>Develop products. Hire weirdos. Launch absurdity. Raise to Series C.</em></p>
+      </div>
+      <div class="founder-setup">
+        <label class="setup-label" for="company-name-input">NAME YOUR STARTUP</label>
+        <div class="setup-row">
+          <input id="company-name-input" class="company-name-input" type="text" maxlength="24" placeholder="SynergyGPT" autocomplete="off" />
+          <button id="btn-reroll-name" class="btn btn-ghost btn-sm" title="Suggest a name">🎲</button>
+        </div>
       </div>
       <div class="menu-buttons">
         <button id="btn-start" class="btn btn-primary btn-large">LAUNCH COMPANY</button>
@@ -182,15 +189,20 @@
           <span class="action-label">HIRE</span>
           <span class="action-cd">$1.5K</span>
         </button>
-        <button id="btn-develop" class="action-btn action-cyan" title="Start developing an absurd product">
-          <span class="action-icon">📦</span>
-          <span class="action-label">DEVELOP</span>
-          <span class="action-cd">FREE</span>
+        <button id="btn-research" class="action-btn action-cyan" title="Research first — unlocks weirder, higher-potential products + rooms & buffs">
+          <span class="action-icon">🔬</span>
+          <span class="action-label">RESEARCH</span>
+          <span class="action-cd">TECH</span>
         </button>
-        <button id="btn-launch-feature" class="action-btn action-amber" title="Marketing stunt: Hype burst (8s cooldown)">
-          <span class="action-icon">▲</span>
-          <span class="action-label">LAUNCH FEATURE</span>
-          <span class="action-cd" id="cd-launch">READY</span>
+        <button id="btn-develop" class="action-btn action-cyan" title="Sit at your desk, then develop a product (name it yourself)">
+          <span class="action-icon">📦</span>
+          <span class="action-label">DEVELOP PRODUCT</span>
+          <span class="action-cd" id="cd-develop">GO TO DESK</span>
+        </button>
+        <button id="btn-launch-product" class="action-btn action-amber" title="Launch a developed product → it goes live, earns MRR & spikes Hype">
+          <span class="action-icon">🚀</span>
+          <span class="action-label">LAUNCH PRODUCT</span>
+          <span class="action-cd" id="cd-launch-product">NONE</span>
         </button>
         <button id="btn-vc-pitch" class="action-btn action-amber" title="Pitch the current funding round in the VC room">
           <span class="action-icon">◆</span>
@@ -207,6 +219,11 @@
           <span class="action-label">PIVOT</span>
           <span class="action-cd" id="cd-pivot">READY</span>
         </button>
+        <button id="btn-loan" class="action-btn action-amber" title="Borrow cash now — adds permanent interest to your burn">
+          <span class="action-icon">🏦</span>
+          <span class="action-label">LOAN</span>
+          <span class="action-cd">CASH</span>
+        </button>
       </div>
       <div class="action-hints">
         <span>WASD: Move Camera</span>
@@ -214,6 +231,12 @@
         <span>Scroll: Zoom</span>
         <span>Click Fires: Extinguish</span>
       </div>
+    </div>
+
+    <!-- Live social / news feed (right rail) -->
+    <div class="social-feed-wrap">
+      <div class="social-feed-title">📡 THE FEED</div>
+      <div id="social-feed" class="social-feed"></div>
     </div>
 
     <!-- Notification Toast -->
@@ -278,7 +301,7 @@
   <div id="build-modal" class="modal hidden">
     <div class="modal-content build-modal-content">
       <div class="modal-header">
-        <h2>BUILD <span class="accent-cyan">OFFICE</span></h2>
+        <h2>CONSTRUCTION <span class="accent-cyan">& FACILITIES</span></h2>
       </div>
       <div id="build-options" class="build-options">
         <!-- Build options injected here -->
@@ -302,7 +325,72 @@
         <!-- Product idea cards injected here -->
       </div>
       <div class="modal-footer">
+        <button id="btn-reroll-products" class="btn btn-primary btn-sm">🎲 Randomize Ideas</button>
         <button id="btn-close-develop" class="btn btn-ghost btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LAUNCH PRODUCT MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="launch-modal" class="modal hidden">
+    <div class="modal-content develop-modal-content">
+      <div class="modal-header">
+        <h2>LAUNCH <span class="accent-cyan">PRODUCT</span></h2>
+      </div>
+      <p id="launch-note" class="modal-note">Launch a finished product to go live.</p>
+      <div id="launch-options" class="candidate-list"></div>
+      <div class="modal-footer">
+        <button id="btn-close-launch" class="btn btn-ghost btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       BANK LOAN MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="loan-modal" class="modal hidden">
+    <div class="modal-content develop-modal-content">
+      <div class="modal-header">
+        <h2>BANK <span class="accent-cyan">LOANS</span></h2>
+      </div>
+      <p id="loan-note" class="modal-note">Borrow now, bleed interest later.</p>
+      <div id="loan-options" class="build-options"></div>
+      <div class="modal-footer">
+        <button id="btn-close-loan" class="btn btn-ghost btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PEDDLER OFFER MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="peddler-modal" class="modal hidden">
+    <div class="modal-content peddler-modal-content">
+      <div class="modal-header">
+        <h2>A <span class="accent-amber">PEDDLER</span> APPEARS</h2>
+      </div>
+      <div id="peddler-body"></div>
+      <div class="modal-footer">
+        <button id="btn-peddler-accept" class="btn btn-primary">TAKE THE DEAL</button>
+        <button id="btn-peddler-decline" class="btn btn-ghost">No thanks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       RESEARCH MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="research-modal" class="modal hidden">
+    <div class="modal-content develop-modal-content">
+      <div class="modal-header">
+        <h2>RESEARCH <span class="accent-cyan">TECH TREE</span></h2>
+      </div>
+      <p id="research-note" class="modal-note">Permanent company-wide upgrades.</p>
+      <div id="research-options" class="build-options"></div>
+      <div class="modal-footer">
+        <button id="btn-close-research" class="btn btn-ghost btn-sm">Close</button>
       </div>
     </div>
   </div>
@@ -358,6 +446,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Breaking-news chyron (fires on PR disasters) -->
+  <div id="news-chyron" class="news-chyron hidden"></div>
+
+  <!-- Single central warning alert (replaces spammy warning toasts) -->
+  <div id="central-alert" class="central-alert hidden"></div>
 
   <!-- Glitch overlay (intensifies as runway depletes) -->
   <div id="glitch-overlay" class="glitch-overlay hidden"></div>

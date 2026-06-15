@@ -73,9 +73,9 @@ export class CameraControls {
     this._lastX = e.clientX;
     this._lastY = e.clientY;
 
-    // Accumulate rotation delta
-    this._velTheta -= dx * 0.008;
-    this._velPhi   -= dy * 0.006;
+    // Accumulate rotation delta (slow orbit)
+    this._velTheta -= dx * 0.0040;
+    this._velPhi   -= dy * 0.0032;
   }
 
   _onMouseUp() {
@@ -111,8 +111,8 @@ export class CameraControls {
       const dy = e.touches[0].clientY - this._lastY;
       this._lastX = e.touches[0].clientX;
       this._lastY = e.touches[0].clientY;
-      this._velTheta -= dx * 0.008;
-      this._velPhi   -= dy * 0.006;
+      this._velTheta -= dx * 0.0040;
+      this._velPhi   -= dy * 0.0032;
     } else if (e.touches.length === 2) {
       const dx   = e.touches[0].clientX - e.touches[1].clientX;
       const dy   = e.touches[0].clientY - e.touches[1].clientY;

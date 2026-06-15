@@ -74,103 +74,205 @@ export class OfficePlatform {
 
   _build() {
     const root = this.root;
+    const concrete = (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.0, roughness: 0.95 });
 
-    // Main platform slab
-    const slabGeo  = new THREE.BoxGeometry(10, 0.4, 8);
-    const slabMat  = obsidianMat(COLORS.obsidianDeep);
-    const slab     = new THREE.Mesh(slabGeo, slabMat);
-    slab.castShadow    = true;
-    slab.receiveShadow = true;
+    // Slab / walls / floor — materials kept so setTier() can recolor them
+    this.slabMat = concrete(0x3b3a38);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(10, 0.4, 8), this.slabMat);
+    slab.castShadow = slab.receiveShadow = true;
     root.add(slab);
 
-    // Beveled top edge trim (thin ring)
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.4, roughness: 0.7 });
     const trimGeo = new THREE.BoxGeometry(10.1, 0.06, 8.1);
-    const trimMat = new THREE.MeshStandardMaterial({
-      color: COLORS.border, metalness: 0.9, roughness: 0.1,
-    });
-    const trim = new THREE.Mesh(trimGeo, trimMat);
-    trim.position.y = 0.23;
-    root.add(trim);
+    const trim = new THREE.Mesh(trimGeo, trimMat); trim.position.y = 0.23; root.add(trim);
+    const bottomTrim = new THREE.Mesh(trimGeo, trimMat); bottomTrim.position.y = -0.23; root.add(bottomTrim);
 
-    // Bottom bevel
-    const bottomTrim = new THREE.Mesh(trimGeo, trimMat);
-    bottomTrim.position.y = -0.23;
-    root.add(bottomTrim);
-
-    // Low obsidian walls (3 sides; front is open for visibility)
-    const wallMat = obsidianMat(0x111111);
-    const wallConfigs = [
-      { w: 10, h: 0.6, d: 0.15, x: 0,    y: 0.5, z: -4  }, // back
-      { w: 0.15, h: 0.6, d: 8,  x: -5,   y: 0.5, z: 0   }, // left
-      { w: 0.15, h: 0.6, d: 8,  x:  5,   y: 0.5, z: 0   }, // right
-    ];
-    for (const cfg of wallConfigs) {
-      const wGeo = new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d);
-      const wall = new THREE.Mesh(wGeo, wallMat);
-      wall.position.set(cfg.x, cfg.y, cfg.z);
-      wall.castShadow = true;
-      root.add(wall);
+    this.wallMat = concrete(0x46433f);
+    for (const cfg of [
+      { w: 10, h: 0.9, d: 0.15, x: 0,  y: 0.65, z: -4 },
+      { w: 0.15, h: 0.9, d: 8,  x: -5, y: 0.65, z: 0  },
+      { w: 0.15, h: 0.9, d: 8,  x:  5, y: 0.65, z: 0  },
+    ]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d), this.wallMat);
+      wall.position.set(cfg.x, cfg.y, cfg.z); wall.castShadow = true; root.add(wall);
     }
 
-    // Frosted glass panels along walls (cyan-tinted)
-    const panelMat = glassMat(0.15);
-    panelMat.color.set(COLORS.obsidianLight);
-    const panelConfigs = [
-      { w: 9.5, h: 0.8, d: 0.05, x: 0,    y: 0.9, z: -3.9 },
-      { w: 0.05, h: 0.8, d: 7.5, x: -4.9, y: 0.9, z: 0    },
-      { w: 0.05, h: 0.8, d: 7.5, x:  4.9, y: 0.9, z: 0    },
-    ];
-    for (const cfg of panelConfigs) {
-      const pGeo   = new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d);
-      const panel  = new THREE.Mesh(pGeo, panelMat.clone());
-      panel.material.emissive = new THREE.Color(COLORS.cyan);
-      panel.material.emissiveIntensity = 0.05;
-      panel.position.set(cfg.x, cfg.y, cfg.z);
-      root.add(panel);
-    }
-
-    // Void base (floating platform — thin pillar under slab)
-    const pillarGeo = new THREE.BoxGeometry(0.4, 3, 0.4);
-    const pillarMat = obsidianMat(0x080808);
+    const pillarMat = concrete(0x222020);
     for (const [px, pz] of [[-4.5,3.5],[-4.5,-3.5],[4.5,3.5],[4.5,-3.5]]) {
-      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(px, -1.7, pz);
-      root.add(pillar);
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3, 0.4), pillarMat);
+      pillar.position.set(px, -1.7, pz); root.add(pillar);
     }
 
-    // Floor surface with subtle grid texture via vertex colors isn't trivial;
-    // use a slightly lighter obsidian plane for the desk area
-    const deskFloorGeo = new THREE.BoxGeometry(6, 0.02, 5);
-    const deskFloorMat = new THREE.MeshStandardMaterial({
-      color: COLORS.obsidianLight, metalness: 0.7, roughness: 0.3,
-    });
-    const deskFloor = new THREE.Mesh(deskFloorGeo, deskFloorMat);
-    deskFloor.position.set(0, 0.21, 0.5);
-    deskFloor.receiveShadow = true;
-    root.add(deskFloor);
+    this.floorMat = concrete(0x4a4642);
+    const deskFloor = new THREE.Mesh(new THREE.BoxGeometry(6, 0.02, 5), this.floorMat);
+    deskFloor.position.set(0, 0.21, 0.5); deskFloor.receiveShadow = true; root.add(deskFloor);
 
-    // Cyan edge glow lines (emissive thin bars)
-    const edgeMat = new THREE.MeshStandardMaterial({
-      color: COLORS.cyan, emissive: new THREE.Color(COLORS.cyan),
-      emissiveIntensity: 0.8,
-    });
-    const edgeConfigs = [
-      { w: 10.1, h: 0.02, d: 0.02, x: 0,  y: 0.21, z: -4 },
-      { w: 10.1, h: 0.02, d: 0.02, x: 0,  y: 0.21, z:  4 },
-      { w: 0.02, h: 0.02, d: 8,    x:-5,  y: 0.21, z:  0 },
-      { w: 0.02, h: 0.02, d: 8,    x: 5,  y: 0.21, z:  0 },
-    ];
-    for (const cfg of edgeConfigs) {
-      const eGeo = new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d);
-      const edge = new THREE.Mesh(eGeo, edgeMat);
-      edge.position.set(cfg.x, cfg.y, cfg.z);
-      root.add(edge);
+    // ── Garage props (only visible at tier 0) ──
+    this.garageGroup = new THREE.Group(); root.add(this.garageGroup);
+    const slatMat = new THREE.MeshStandardMaterial({ color: 0x6b6b70, metalness: 0.45, roughness: 0.6 });
+    for (let i = 0; i < 8; i++) {
+      const slat = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.17, 0.06), slatMat);
+      slat.position.set(0, 0.4 + i * 0.18, -3.95); this.garageGroup.add(slat);
+    }
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x303030, metalness: 0.6, roughness: 0.5 });
+    for (const rx of [-1.75, 1.75]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.6, 0.07), railMat);
+      rail.position.set(rx, 1.05, -3.92); this.garageGroup.add(rail);
+    }
+    const stain = new THREE.Mesh(new THREE.CircleGeometry(0.6, 20),
+      new THREE.MeshStandardMaterial({ color: 0x1b1814, roughness: 1 }));
+    stain.rotation.x = -Math.PI / 2; stain.position.set(1.7, 0.222, 1.7); this.garageGroup.add(stain);
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x8a6a3f, metalness: 0, roughness: 1 });
+    for (const b of [{ x:-4.2,z:3.1,s:0.5,r:0.3 },{ x:-3.7,z:3.35,s:0.34,r:-0.4 },{ x:4.2,z:3.2,s:0.45,r:0.2 }]) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(b.s, b.s, b.s), boxMat);
+      box.position.set(b.x, 0.21 + b.s / 2, b.z); box.rotation.y = b.r; box.castShadow = true;
+      this.garageGroup.add(box);
+    }
+
+    // ── Office accents (revealed when you expand: cyan edges + glass walls) ──
+    this.officeGroup = new THREE.Group(); this.officeGroup.visible = false; root.add(this.officeGroup);
+    const edgeMat = new THREE.MeshStandardMaterial({ color: COLORS.cyan, emissive: new THREE.Color(COLORS.cyan), emissiveIntensity: 0.8 });
+    for (const cfg of [
+      { w: 10.1, h: 0.02, d: 0.02, x: 0, y: 0.21, z: -4 },
+      { w: 10.1, h: 0.02, d: 0.02, x: 0, y: 0.21, z:  4 },
+      { w: 0.02, h: 0.02, d: 8,    x:-5, y: 0.21, z:  0 },
+      { w: 0.02, h: 0.02, d: 8,    x: 5, y: 0.21, z:  0 },
+    ]) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d), edgeMat);
+      edge.position.set(cfg.x, cfg.y, cfg.z); this.officeGroup.add(edge);
+    }
+    const panelMat = glassMat(0.15); panelMat.color.set(COLORS.glass);
+    panelMat.emissive = new THREE.Color(COLORS.cyan); panelMat.emissiveIntensity = 0.05;
+    for (const cfg of [
+      { w: 9.5, h: 0.8, d: 0.05, x: 0,    y: 0.95, z: -3.9 },
+      { w: 0.05, h: 0.8, d: 7.5, x: -4.9, y: 0.95, z: 0    },
+      { w: 0.05, h: 0.8, d: 7.5, x:  4.9, y: 0.95, z: 0    },
+    ]) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d), panelMat.clone());
+      panel.position.set(cfg.x, cfg.y, cfg.z); this.officeGroup.add(panel);
     }
 
     root.position.y = -0.2;
+    this.setTier(0);
+  }
+
+  /** Transform the office look for an expansion tier (0 garage → 2 sleek). */
+  setTier(n) {
+    this.tier = n;
+    if (this.garageGroup) this.garageGroup.visible = (n === 0);
+    if (this.officeGroup) this.officeGroup.visible = (n >= 1);
+    const floorCol = n === 0 ? 0x4a4642 : n === 1 ? 0x33373f : 0x262a34;
+    const slabCol  = n === 0 ? 0x3b3a38 : n === 1 ? 0x2c2f36 : 0x22242c;
+    const wallCol  = n === 0 ? 0x46433f : n === 1 ? 0x3a3d44 : 0x2e3138;
+    if (this.floorMat) {
+      this.floorMat.color.setHex(floorCol);
+      this.floorMat.metalness = n >= 2 ? 0.5 : 0.0;
+      this.floorMat.roughness = n >= 2 ? 0.3 : 0.95;
+    }
+    if (this.slabMat) this.slabMat.color.setHex(slabCol);
+    if (this.wallMat) this.wallMat.color.setHex(wallCol);
   }
 
   addToScene(scene) { scene.add(this.root); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  COMPANY SIGN — a wall panel showing the startup's name (CanvasTexture text)
+// ═══════════════════════════════════════════════════════════════════════════════
+export function makeCompanySign(name, tier = 0) {
+  const root = new THREE.Group();
+  const handdrawn = tier === 0;
+
+  // Backing board — cardboard in the garage, dark panel once you've grown
+  const board = new THREE.Mesh(
+    new THREE.BoxGeometry(3.8, 0.95, 0.1),
+    new THREE.MeshStandardMaterial({ color: handdrawn ? 0x9c7a45 : 0x14141a, metalness: handdrawn ? 0 : 0.3, roughness: handdrawn ? 1 : 0.7 })
+  );
+  root.add(board);
+
+  if (!handdrawn) {
+    const armMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.6, roughness: 0.5 });
+    for (const ax of [-1.4, 1.4]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.3), armMat);
+      arm.position.set(ax, 0.3, -0.18); root.add(arm);
+    }
+  }
+
+  // Canvas-rendered text (no font assets needed)
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256;
+  const ctx = cv.getContext('2d');
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  if (handdrawn) {
+    // Scrawled-on-cardboard look
+    ctx.fillStyle = '#b9925a'; ctx.fillRect(0, 0, 1024, 256);
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    for (let i = 0; i < 40; i++) ctx.fillRect(Math.sin(i * 12.9) * 512 + 512, (i * 37) % 256, 60, 2); // faint grain
+    // wobbly marker border
+    ctx.strokeStyle = '#3a2f24'; ctx.lineWidth = 7; ctx.beginPath();
+    const pts = [[40,40],[990,28],[1000,224],[28,234]];
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i <= pts.length; i++) { const p = pts[i % pts.length]; ctx.lineTo(p[0], p[1]); }
+    ctx.stroke();
+    // marker name in a handwriting font
+    let fs = 130;
+    const font = (s) => `bold ${s}px "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive`;
+    ctx.font = font(fs);
+    while (ctx.measureText(name).width > 900 && fs > 30) { fs -= 6; ctx.font = font(fs); }
+    ctx.fillStyle = '#22324a'; // blue marker ink
+    ctx.save(); ctx.translate(512, 138); ctx.rotate(-0.025);
+    ctx.fillText(name, 0, 0);
+    // hand-drawn underline scribble
+    ctx.strokeStyle = '#7a2b2b'; ctx.lineWidth = 6; ctx.beginPath();
+    ctx.moveTo(-fs * name.length * 0.22, fs * 0.45);
+    ctx.quadraticCurveTo(0, fs * 0.6, fs * name.length * 0.22, fs * 0.42);
+    ctx.stroke(); ctx.restore();
+  } else {
+    // Polished neon logo
+    ctx.fillStyle = '#0c0c12'; ctx.fillRect(0, 0, 1024, 256);
+    ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 8; ctx.strokeRect(12, 12, 1000, 232);
+    ctx.fillStyle = '#00ffff';
+    let fs = 120;
+    ctx.font = `900 ${fs}px "Segoe UI", Arial, sans-serif`;
+    while (ctx.measureText(name).width > 920 && fs > 28) { fs -= 6; ctx.font = `900 ${fs}px "Segoe UI", Arial, sans-serif`; }
+    ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 24;
+    ctx.fillText(name, 512, 134);
+  }
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.anisotropy = 4;
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.5, 0.875),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+  );
+  panel.position.z = 0.06;
+  root.add(panel);
+
+  root.userData.canvas = cv;
+  root.userData.tex = tex;
+  root.position.set(0, 2.15, -3.86);
+  return root;
+}
+
+/**
+ * A glowing floor ring + floating arrow marking the founder's desk
+ * ("sit here to work / develop"). The arrow can be toggled when seated.
+ */
+export function makeDeskMarker() {
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.45, 0.03, 8, 32),
+    new THREE.MeshStandardMaterial({ color: COLORS.cyan, emissive: new THREE.Color(COLORS.cyan), emissiveIntensity: 0.9 })
+  );
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.05; g.add(ring);
+  const arrow = new THREE.Mesh(
+    new THREE.ConeGeometry(0.13, 0.24, 4),
+    new THREE.MeshStandardMaterial({ color: COLORS.amber, emissive: new THREE.Color(COLORS.amber), emissiveIntensity: 1.1 })
+  );
+  arrow.rotation.x = Math.PI; arrow.position.y = 0.95; g.add(arrow);
+  g.userData.ring = ring;
+  g.userData.arrow = arrow;
+  return g;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -184,34 +286,26 @@ export class OfficeFurniture {
   }
 
   _build() {
-    this._buildDesk();
-    this._buildChair();
+    // Central desk/chair/monitors removed — the only workstation is the
+    // founder's DeskStation on the left. Server racks stay (fires need them).
     this._buildServerRacks();
-    this._buildMonitors();
   }
 
   _buildDesk() {
     const g = new THREE.Group();
 
-    // Desk surface — dark with glass inlay
-    const topGeo = new THREE.BoxGeometry(3, 0.08, 1.4);
-    const topMat = obsidianMat(0x0D0D0D);
-    const top    = new THREE.Mesh(topGeo, topMat);
+    // Smaller rough wooden workbench top (no high-tech glass)
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.08, 0.9),
+      new THREE.MeshStandardMaterial({ color: 0x4a3520, metalness: 0.0, roughness: 0.85 })
+    );
     top.castShadow = true; top.receiveShadow = true;
     g.add(top);
 
-    // Glass surface inlay (frosted with cyan edge)
-    const glassGeo = new THREE.BoxGeometry(2.6, 0.01, 1.0);
-    const glassMesh = new THREE.Mesh(glassGeo, glassMat(0.4));
-    glassMesh.material.emissive    = new THREE.Color(COLORS.cyan);
-    glassMesh.material.emissiveIntensity = 0.06;
-    glassMesh.position.y = 0.045;
-    g.add(glassMesh);
-
-    // Desk legs
-    const legGeo = new THREE.BoxGeometry(0.08, 0.8, 0.08);
-    const legMat = chromeMat();
-    for (const [lx, lz] of [[-1.4, -0.6], [-1.4, 0.6], [1.4, -0.6], [1.4, 0.6]]) {
+    // Matte metal legs
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x4f4f57, metalness: 0.5, roughness: 0.6 });
+    const legGeo = new THREE.BoxGeometry(0.07, 0.8, 0.07);
+    for (const [lx, lz] of [[-0.8, -0.36], [-0.8, 0.36], [0.8, -0.36], [0.8, 0.36]]) {
       const leg = new THREE.Mesh(legGeo, legMat);
       leg.position.set(lx, -0.44, lz);
       g.add(leg);
@@ -223,49 +317,35 @@ export class OfficeFurniture {
 
   _buildChair() {
     const g = new THREE.Group();
-    const mat = obsidianMat(0x111111);
-    const chromM = chromeMat();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.2, roughness: 0.8 });
+    const metalM = new THREE.MeshStandardMaterial({ color: 0x4f4f57, metalness: 0.5, roughness: 0.6 });
 
-    // Seat
-    const seatGeo = new THREE.BoxGeometry(0.7, 0.1, 0.7);
-    g.add(new THREE.Mesh(seatGeo, mat));
+    // Seat (smaller)
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.09, 0.45), mat));
 
     // Back
-    const backGeo = new THREE.BoxGeometry(0.7, 0.9, 0.08);
-    const back = new THREE.Mesh(backGeo, mat);
-    back.position.set(0, 0.5, -0.31);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.06), mat);
+    back.position.set(0, 0.32, -0.2);
     back.rotation.x = 0.1;
     g.add(back);
 
-    // Arm rests
-    const armGeo = new THREE.BoxGeometry(0.06, 0.06, 0.6);
-    for (const ax of [-0.35, 0.35]) {
-      const arm = new THREE.Mesh(armGeo, chromM);
-      arm.position.set(ax, 0.2, -0.05);
-      g.add(arm);
-    }
-
     // Base pole
-    const poleGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8);
-    const pole    = new THREE.Mesh(poleGeo, chromM);
-    pole.position.y = -0.3;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.35, 8), metalM);
+    pole.position.y = -0.2;
     g.add(pole);
 
-    // 5-star base
-    const baseGeo = new THREE.CylinderGeometry(0.04, 0.4, 0.06, 5);
-    const base    = new THREE.Mesh(baseGeo, chromM);
-    base.position.y = -0.56;
+    // 5-star base (smaller)
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.26, 0.05, 5), metalM);
+    base.position.y = -0.38;
     g.add(base);
 
-    g.position.set(0, 0.33, 1.4);
+    g.position.set(0, 0.33, 1.15);
     this.root.add(g);
   }
 
   _buildServerRacks() {
-    // Two server rack towers — these are where fires spawn
-    const rackGeo = new THREE.BoxGeometry(0.6, 1.4, 0.4);
+    // Two low, flat server units sitting flat on the floor — fires spawn here
     const rackMat = obsidianMat(0x111111);
-
     const rackPositions = [
       { x: -3.5, z: -2.5, name: 'rack_left'  },
       { x:  3.5, z: -2.5, name: 'rack_right' },
@@ -277,38 +357,34 @@ export class OfficeFurniture {
       const rack = new THREE.Group();
       rack.name = cfg.name;
 
-      const body = new THREE.Mesh(rackGeo, rackMat.clone());
+      // Flat low chassis (1.0 w × 0.34 h × 0.7 d), bottom resting on the floor
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.34, 0.7), rackMat.clone());
       body.castShadow = body.receiveShadow = true;
       rack.add(body);
+      rack.userData.body = body;
 
-      // Rack unit stripes (visual detail)
-      const stripeMat = new THREE.MeshStandardMaterial({
-        color: COLORS.border, metalness: 0.7, roughness: 0.3,
-      });
-      for (let i = 0; i < 5; i++) {
-        const stripe = new THREE.Mesh(
-          new THREE.BoxGeometry(0.58, 0.04, 0.38),
-          stripeMat
-        );
-        stripe.position.y = -0.6 + i * 0.28;
+      // Vent stripes across the top
+      const stripeMat = new THREE.MeshStandardMaterial({ color: COLORS.border, metalness: 0.7, roughness: 0.3 });
+      for (let i = 0; i < 4; i++) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.02, 0.06), stripeMat);
+        stripe.position.set(0, 0.18, -0.22 + i * 0.14);
         rack.add(stripe);
       }
 
-      // LED indicator row
+      // LED indicator row across the front face
       const ledMat = new THREE.MeshStandardMaterial({
-        color: COLORS.success,
-        emissive: new THREE.Color(COLORS.success),
-        emissiveIntensity: 1,
+        color: COLORS.success, emissive: new THREE.Color(COLORS.success), emissiveIntensity: 1,
       });
       rack.userData.ledMat = ledMat;
-
+      rack.userData.leds = [];
       for (let i = 0; i < 4; i++) {
-        const led = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.02), ledMat.clone());
-        led.position.set(-0.2 + i * 0.13, 0.6, 0.21);
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), ledMat.clone());
+        led.position.set(-0.3 + i * 0.16, 0.0, 0.36);
         rack.add(led);
+        rack.userData.leds.push(led);
       }
 
-      rack.position.set(cfg.x, 0.9, cfg.z);
+      rack.position.set(cfg.x, 0.17, cfg.z); // center at 0.17 → sits flat on the floor
       this.serverRacks.push(rack);
       this.root.add(rack);
     }
@@ -377,6 +453,22 @@ export class OfficeFurniture {
       g.rotation.y = cfg.ry;
       this.root.add(g);
     }
+  }
+
+  /**
+   * Toggle a server rack between operational and destroyed (fire damage).
+   * Down racks tilt and turn their LEDs red.
+   */
+  setRackDown(idx, down) {
+    const rack = this.serverRacks && this.serverRacks[idx];
+    if (!rack) return;
+    const col = down ? COLORS.error : COLORS.success;
+    for (const led of (rack.userData.leds || [])) {
+      led.material.color.set(col);
+      led.material.emissive.set(col);
+      led.material.emissiveIntensity = down ? 0.5 : 1;
+    }
+    if (rack.userData.body) rack.userData.body.material.color.setHex(down ? 0x070707 : 0x111111);
   }
 
   /**
@@ -690,7 +782,7 @@ export class ServerFire {
     this.root.add(this.hitbox);
 
     this.root.position.copy(this.position3d);
-    this.root.position.y += 0.7;
+    this.root.position.y += 0.25; // sit the flames on the low, flat server unit
   }
 
   update(dt, time) {
@@ -831,12 +923,64 @@ export class HypeConfetti {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  STEAM PUFF — extinguish FX (white/blue burst + flash). Shares confetti API.
+// ═══════════════════════════════════════════════════════════════════════════════
+export class SteamPuff {
+  constructor(origin, scene) {
+    this.root = new THREE.Group();
+    this._scene = scene; this._age = 0; this._done = false;
+    const count = 46;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const col = new Float32Array(count * 3);
+    this._vel = [];
+    for (let i = 0; i < count; i++) {
+      pos[i*3] = origin.x; pos[i*3+1] = origin.y; pos[i*3+2] = origin.z;
+      const g = 0.75 + Math.random() * 0.25;
+      col[i*3] = g; col[i*3+1] = g; col[i*3+2] = 1.0; // white-blue steam
+      const a = Math.random() * Math.PI * 2; const sp = 0.4 + Math.random() * 1.4;
+      this._vel.push(new THREE.Vector3(Math.cos(a) * sp * 0.7, 1.4 + Math.random() * 1.6, Math.sin(a) * sp * 0.7));
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    this._geo = geo; this._pos = pos;
+    this._mat = new THREE.PointsMaterial({ size: 0.2, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, sizeAttenuation: true });
+    this.root.add(new THREE.Points(geo, this._mat));
+    this._flashMat = new THREE.MeshBasicMaterial({ color: 0xd6f2ff, transparent: true, opacity: 0.85 });
+    this._flash = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), this._flashMat);
+    this._flash.position.copy(origin);
+    this.root.add(this._flash);
+    scene.add(this.root);
+  }
+  update(dt) {
+    this._age += dt;
+    if (this._age > 1.2) { this._done = true; this._scene.remove(this.root); return; }
+    const t = this._age / 1.2;
+    for (let i = 0; i < this._vel.length; i++) {
+      this._vel[i].y -= 1.0 * dt;
+      this._pos[i*3]   += this._vel[i].x * dt;
+      this._pos[i*3+1] += this._vel[i].y * dt;
+      this._pos[i*3+2] += this._vel[i].z * dt;
+    }
+    this._geo.attributes.position.needsUpdate = true;
+    this._mat.opacity = 0.92 * (1 - t);
+    this._flash.scale.setScalar(0.3 + t * 1.4);
+    this._flashMat.opacity = 0.85 * (1 - t);
+  }
+  get done() { return this._done; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  DESK STATIONS — buildable workstations where hired employees sit
 // ═══════════════════════════════════════════════════════════════════════════════
 export const DESK_SLOT_POSITIONS = [
   { x: -3.6, z: -1.0 }, { x: -2.2, z: -1.0 },
   { x: -3.6, z:  0.6 }, { x: -2.2, z:  0.6 },
   { x: -3.6, z:  2.2 }, { x: -2.2, z:  2.2 },
+  // unlocked by office expansion (center columns)
+  { x: -0.9, z: -1.0 }, { x:  0.5, z: -1.0 },
+  { x: -0.9, z:  0.6 }, { x:  0.5, z:  0.6 },
+  { x: -0.9, z:  2.2 }, { x:  0.5, z:  2.2 },
 ];
 
 export const CHARACTER_PALETTE = [
@@ -848,14 +992,21 @@ export const CHARACTER_PALETTE = [
  * and VCs (dark suit + tie).
  */
 export class EmployeeCharacter {
-  constructor({ color = COLORS.cyan, suit = false } = {}) {
+  constructor({ color = COLORS.cyan, suit = false, walker = false } = {}) {
     this.root    = new THREE.Group();
     this._energy = 1.0;
     this._burned = false;
-    this._build(color, suit);
+    this._walker = walker;
+    this._walkTarget = null;
+    this._onArrive = null;
+    this._walkSpeed = 1.7;
+    this._legPhase = 0;
+    this._legs = null;
+    this._plumb = null;
+    this._build(color, suit, walker);
   }
 
-  _build(color, suit) {
+  _build(color, suit, walker) {
     const bodyColor = suit ? 0x1A1A22 : color;
     const bodyMat = new THREE.MeshStandardMaterial({
       color: bodyColor, metalness: 0.3, roughness: 0.6,
@@ -898,7 +1049,7 @@ export class EmployeeCharacter {
       const tie = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.02), tieMat);
       tie.position.set(0, 0.24, 0.115);
       this.root.add(tie);
-    } else {
+    } else if (!walker) {
       // Energy halo above the head: green → amber → red
       this.energyMat = new THREE.MeshStandardMaterial({
         color: COLORS.success,
@@ -912,6 +1063,73 @@ export class EmployeeCharacter {
       this.energyRing.position.y = 0.6;
       this.root.add(this.energyRing);
     }
+
+    if (walker) {
+      // Legs (swing from the hip while walking)
+      this._legs = [];
+      const legGeo = new THREE.CylinderGeometry(0.038, 0.03, 0.22, 6);
+      for (const side of [-1, 1]) {
+        const legGroup = new THREE.Group();
+        const legMesh = new THREE.Mesh(legGeo, bodyMat);
+        legMesh.position.y = -0.11;
+        legMesh.castShadow = true;
+        legGroup.add(legMesh);
+        legGroup.position.set(side * 0.055, 0.0, 0);
+        this.root.add(legGroup);
+        this._legs.push(legGroup);
+      }
+      // Sims-style plumbob: a floating green diamond marking the player
+      const plumbMat = new THREE.MeshStandardMaterial({
+        color: COLORS.success, emissive: new THREE.Color(COLORS.success), emissiveIntensity: 1.4,
+      });
+      this._plumb = new THREE.Mesh(new THREE.OctahedronGeometry(0.085), plumbMat);
+      this._plumb.position.y = 0.78;
+      this.root.add(this._plumb);
+    }
+  }
+
+  /** Send this character walking to a floor position (x,z). */
+  walkTo(x, z, onArrive = null) {
+    this._walkTarget = { x, z };
+    this._onArrive = onArrive;
+  }
+
+  isWalking() { return !!this._walkTarget; }
+
+  /** Advance walking movement. Call with dt each frame for walkers. */
+  updateWalk(dt) {
+    if (!this._walkTarget) {
+      if (this._legs) { this._legs[0].rotation.x = 0; this._legs[1].rotation.x = 0; }
+      return;
+    }
+    const p = this.root.position;
+    const dx = this._walkTarget.x - p.x;
+    const dz = this._walkTarget.z - p.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.06) {
+      p.x = this._walkTarget.x; p.z = this._walkTarget.z;
+      this._walkTarget = null;
+      if (this._legs) { this._legs[0].rotation.x = 0; this._legs[1].rotation.x = 0; }
+      if (this._onArrive) { const cb = this._onArrive; this._onArrive = null; cb(); }
+      return;
+    }
+    const step = Math.min(dist, this._walkSpeed * dt);
+    const nx = p.x + (dx / dist) * step;
+    const nz = p.z + (dz / dist) * step;
+
+    // Basic collision: try full move, then slide along X, then along Z, else give up
+    const R = 0.28;
+    const blocked = (x, z) => (this.obstacles || []).some(o => Math.hypot(x - o.x, z - o.z) < o.r + R);
+    if (!blocked(nx, nz)) { p.x = nx; p.z = nz; }
+    else if (!blocked(nx, p.z)) { p.x = nx; }
+    else if (!blocked(p.x, nz)) { p.z = nz; }
+    else { this._walkTarget = null; if (this._legs) { this._legs[0].rotation.x = 0; this._legs[1].rotation.x = 0; } return; }
+
+    this.root.rotation.y = Math.atan2(dx, dz);
+    this._legPhase += dt * 9;
+    const a = Math.sin(this._legPhase) * 0.5;
+    this._legs[0].rotation.x = a;
+    this._legs[1].rotation.x = -a;
   }
 
   setEnergy(level, burnedOut = false) {
@@ -933,15 +1151,20 @@ export class EmployeeCharacter {
   }
 
   update(time, seed = 0) {
-    // Typing bob
+    // Typing bob + occasional agile little hop (spikes only near the sine peak)
     const bob = this._burned ? 0 : Math.sin(time * 4 + seed * 1.7) * 0.01;
-    this.root.position.y = this._baseY + bob;
+    const hop = this._burned ? 0 : Math.pow(Math.max(0, Math.sin(time * 0.9 + seed * 2.3)), 16) * 0.14;
+    this.root.position.y = this._baseY + bob + hop;
     // Burnout slump + twitch
     this.root.rotation.x = this._burned ? 0.35 : 0;
     if (this._burned) {
       this.root.rotation.z = Math.sin(time * 20 + seed) * 0.01;
     }
     if (this.energyRing) this.energyRing.rotation.z = time * 0.8;
+    if (this._plumb) {
+      this._plumb.rotation.y = time * 2.2;
+      this._plumb.position.y = 0.82 + Math.sin(time * 2.5) * 0.03;
+    }
   }
 
   setBasePosition(x, y, z) {
@@ -1119,6 +1342,204 @@ export class ProductShowcase {
   }
 
   addToScene(scene) { scene.add(this.root); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FACILITIES — buildable devices & rooms placed around the office
+// ═══════════════════════════════════════════════════════════════════════════════
+const FACILITY_SPOTS = {
+  espresso:   { x: -1.0, z:  3.2 },
+  gpu:        { x:  3.7, z: -0.6 },
+  neon:       { x: -2.6, z: -3.86 },
+  dashboard:  { x: -0.6, z: -3.86 },
+  sprinkler:  { x:  0.0, z: -1.2 },
+  serverroom: { x:  3.4, z: -2.4 },
+  breakroom:  { x: -3.6, z:  3.1 },
+  warroom:    { x:  2.1, z: -0.7 },
+  lab:        { x:  1.3, z:  3.0 },
+  legal:      { x: -3.7, z: -2.9 },
+  cafeteria:  { x:  2.8, z:  3.0 },
+  datacenter: { x:  1.8, z: -3.0 },
+};
+
+function emissiveMat(color, i = 0.7) {
+  return new THREE.MeshStandardMaterial({
+    color, emissive: new THREE.Color(color), emissiveIntensity: i,
+    metalness: 0.5, roughness: 0.3,
+  });
+}
+
+function buildRoomZone(root, { w = 1.6, d = 1.6, color = COLORS.cyan }) {
+  const pad = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 0.04, d),
+    new THREE.MeshStandardMaterial({ color: COLORS.obsidianLight, metalness: 0.6, roughness: 0.4 })
+  );
+  pad.position.y = 0.02; pad.receiveShadow = true; root.add(pad);
+
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.03, 0.012, d + 0.03), emissiveMat(color, 0.6));
+  rim.position.y = 0.05; root.add(rim);
+
+  const gm = glassMat(0.16); gm.color.set(color);
+  gm.emissive = new THREE.Color(color); gm.emissiveIntensity = 0.05;
+  const wallB = new THREE.Mesh(new THREE.BoxGeometry(w, 0.7, 0.04), gm.clone()); wallB.position.set(0, 0.37, -d / 2); root.add(wallB);
+  const wallL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, d), gm.clone()); wallL.position.set(-w / 2, 0.37, 0); root.add(wallL);
+}
+
+function signPost(color, y = 0.95) {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, y, 6), chromeMat());
+  post.position.y = y / 2; g.add(post);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.03), emissiveMat(color, 0.9));
+  sign.position.y = y; g.add(sign);
+  return g;
+}
+
+/**
+ * Build a 3D representation for a facility id, positioned at its office spot.
+ * Returns a THREE.Group (add to scene). Geometry is procedural/placeholder.
+ */
+export function buildFacility(id) {
+  const spot = FACILITY_SPOTS[id] || { x: 0, z: 0 };
+  const root = new THREE.Group();
+
+  switch (id) {
+    case 'espresso': {
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.4), obsidianMat(0x141414));
+      counter.position.y = 0.25; counter.castShadow = true; root.add(counter);
+      const machine = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.25), chromeMat());
+      machine.position.set(0, 0.65, 0); root.add(machine);
+      const led = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.02), emissiveMat(COLORS.success, 1));
+      led.position.set(0, 0.7, 0.13); root.add(led);
+      break;
+    }
+    case 'gpu': {
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.4), obsidianMat(0x0E0E12));
+      tower.position.y = 0.6; tower.castShadow = true; root.add(tower);
+      for (let i = 0; i < 5; i++) {
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.04, 0.02), emissiveMat(COLORS.cyan, 1.4));
+        led.position.set(0, 0.25 + i * 0.2, 0.21); root.add(led);
+      }
+      break;
+    }
+    case 'neon': {
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.04), emissiveMat(COLORS.magenta, 1.3));
+      sign.position.set(0, 1.3, 0); root.add(sign);
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 0.02), emissiveMat(COLORS.cyan, 1));
+      bar.position.set(0, 1.02, 0.02); root.add(bar);
+      break;
+    }
+    case 'dashboard': {
+      const screen = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.04), obsidianMat(0x0A0A0A));
+      screen.position.set(0, 1.25, 0); root.add(screen);
+      const disp = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.52, 0.01), emissiveMat(COLORS.cyan, 0.7));
+      disp.position.set(0, 1.25, 0.025); root.add(disp);
+      for (let i = 0; i < 4; i++) {
+        const h = 0.1 + i * 0.08;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.12, h, 0.005), emissiveMat(COLORS.success, 1));
+        b.position.set(-0.3 + i * 0.2, 1.06 + h / 2, 0.03); root.add(b);
+      }
+      break;
+    }
+    case 'sprinkler': {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3, 8), chromeMat());
+      pipe.rotation.z = Math.PI / 2; pipe.position.set(0, 2.3, 0); root.add(pipe);
+      for (const px of [-1, 0, 1]) {
+        const noz = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 8), emissiveMat(COLORS.cyan, 0.8));
+        noz.position.set(px, 2.2, 0); root.add(noz);
+      }
+      break;
+    }
+    case 'serverroom': {
+      buildRoomZone(root, { w: 1.8, d: 1.8, color: COLORS.cyan });
+      for (const dx of [-0.45, 0.45]) {
+        const rack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.0, 0.3), obsidianMat(0x101016));
+        rack.position.set(dx, 0.5, -0.4); root.add(rack);
+        for (let i = 0; i < 4; i++) {
+          const l = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.02), emissiveMat(COLORS.success, 1.2));
+          l.position.set(dx, 0.25 + i * 0.2, -0.24); root.add(l);
+        }
+      }
+      root.add(signPost(COLORS.cyan));
+      break;
+    }
+    case 'breakroom': {
+      buildRoomZone(root, { w: 1.6, d: 1.6, color: COLORS.amber });
+      const couch = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.4), obsidianMat(0x16160F));
+      couch.position.set(0, 0.2, -0.3); root.add(couch);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.1), obsidianMat(0x16160F));
+      back.position.set(0, 0.35, -0.5); root.add(back);
+      const plant = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), emissiveMat(COLORS.success, 0.4));
+      plant.position.set(0.5, 0.4, 0.4); root.add(plant);
+      root.add(signPost(COLORS.amber));
+      break;
+    }
+    case 'warroom': {
+      buildRoomZone(root, { w: 1.6, d: 1.4, color: COLORS.amber });
+      const table = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.06, 20), glassMat(0.4));
+      table.position.y = 0.6; root.add(table);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 8), chromeMat());
+      pole.position.y = 0.3; root.add(pole);
+      root.add(signPost(COLORS.amber));
+      break;
+    }
+    case 'lab': {
+      buildRoomZone(root, { w: 1.5, d: 1.5, color: COLORS.success });
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.35), obsidianMat(0x0E140E));
+      bench.position.set(0, 0.25, -0.3); root.add(bench);
+      const beaker = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.25, 12), glassMat(0.5));
+      beaker.position.set(0, 0.62, -0.3); root.add(beaker);
+      const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.12, 12), emissiveMat(COLORS.success, 1));
+      liquid.position.set(0, 0.56, -0.3); root.add(liquid);
+      root.add(signPost(COLORS.success));
+      break;
+    }
+    case 'legal': {
+      buildRoomZone(root, { w: 1.5, d: 1.5, color: COLORS.amber });
+      const desk = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.4), obsidianMat(0x141414));
+      desk.position.set(0, 0.25, -0.3); root.add(desk);
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.02), chromeMat());
+      beam.position.set(0, 0.85, -0.3); root.add(beam);
+      const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 6), chromeMat());
+      stand.position.set(0, 0.7, -0.3); root.add(stand);
+      for (const dx of [-0.22, 0.22]) {
+        const pan = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02, 12), emissiveMat(COLORS.amber, 0.6));
+        pan.position.set(dx, 0.78, -0.3); root.add(pan);
+      }
+      root.add(signPost(COLORS.amber));
+      break;
+    }
+    case 'cafeteria': {
+      buildRoomZone(root, { w: 1.7, d: 1.5, color: COLORS.amber });
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 0.4), obsidianMat(0x16140E));
+      counter.position.set(0, 0.25, -0.4); root.add(counter);
+      for (const dx of [-0.3, 0, 0.3]) {
+        const tray = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.18), emissiveMat(COLORS.amber, 0.5));
+        tray.position.set(dx, 0.54, -0.4); root.add(tray);
+      }
+      root.add(signPost(COLORS.amber));
+      break;
+    }
+    case 'datacenter': {
+      buildRoomZone(root, { w: 1.9, d: 1.7, color: COLORS.cyan });
+      for (const dx of [-0.55, 0, 0.55]) {
+        const rack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 1.25, 0.32), obsidianMat(0x0C0C14));
+        rack.position.set(dx, 0.62, -0.45); root.add(rack);
+        for (let i = 0; i < 5; i++) {
+          const l = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.02), emissiveMat(COLORS.cyan, 1.3));
+          l.position.set(dx, 0.25 + i * 0.22, -0.28); root.add(l);
+        }
+      }
+      root.add(signPost(COLORS.cyan));
+      break;
+    }
+    default: {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), emissiveMat(COLORS.cyan, 0.6));
+      box.position.y = 0.25; root.add(box);
+    }
+  }
+
+  root.position.set(spot.x, 0, spot.z);
+  return root;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
