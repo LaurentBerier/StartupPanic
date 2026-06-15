@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Startup Panic Simulator</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MAIN MENU SCREEN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="main-menu" class="screen active">
+    <div class="menu-bg-grid"></div>
+    <div class="menu-content">
+      <div class="logo-block">
+        <div class="logo-tag">SERIES A PENDING</div>
+        <h1 class="logo-title">AI STARTUP <span class="accent-cyan">PANIC</span></h1>
+        <p class="logo-subtitle">A Satirical AI Startup Tycoon Simulator</p>
+      </div>
+      <div class="menu-description">
+        <p>You are the founder. The AI is sentient. The burn rate is real.<br/>
+        <em>Build desks. Hire weirdos. Ship absurdity. Raise to Series C.</em></p>
+      </div>
+      <div class="menu-buttons">
+        <button id="btn-start" class="btn btn-primary btn-large">LAUNCH COMPANY</button>
+        <button id="btn-how-to-play" class="btn btn-ghost">HOW TO PLAY</button>
+      </div>
+      <div class="menu-controls-hint">
+        <span>WASD / Arrow Keys — Navigate</span>
+        <span>Click — Interact</span>
+        <span>Mouse Drag — Rotate Camera</span>
+        <span>Scroll — Zoom</span>
+      </div>
+    </div>
+    <div class="menu-mercury-bg"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HOW TO PLAY SCREEN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="how-to-play-screen" class="screen">
+    <div class="menu-bg-grid"></div>
+    <div class="menu-content how-to-play-content">
+      <h2 class="screen-title">HOW TO <span class="accent-cyan">PLAY</span></h2>
+      <div class="htp-grid">
+        <div class="htp-card">
+          <div class="htp-icon">🪑</div>
+          <h3>BUILD THE OFFICE</h3>
+          <p>Buy <strong>desks</strong> to create seats, and <strong>computers</strong> so your hires don't work at half speed. No desk, no hire.</p>
+        </div>
+        <div class="htp-card">
+          <div class="htp-icon">🧌</div>
+          <h3>HIRE WEIRDOS</h3>
+          <p>Every candidate has a <strong>personality</strong>: 10x Engineers combust, Crypto Bros launch rogue tokens, Zen Masters never burn out. Salaries drain cash every second.</p>
+        </div>
+        <div class="htp-card">
+          <div class="htp-icon">📦</div>
+          <h3>SHIP ABSURD PRODUCTS</h3>
+          <p>Pick an idea (ToastGPT, NFT Air...) and your team builds it. Shipped products earn <strong>MRR</strong> — boosted by Hype — and unlock funding rounds.</p>
+        </div>
+        <div class="htp-card">
+          <div class="htp-icon">◆</div>
+          <h3>PITCH IN THE VC ROOM</h3>
+          <p>VCs appear at the pitch table. Combine <strong>buzzwords</strong> and meet each round's product/hype requirements to close <strong>Pre-Seed → Series C</strong>. Close Series C to win.</p>
+        </div>
+        <div class="htp-card">
+          <div class="htp-icon">🔥</div>
+          <h3>SURVIVE THE CHAOS</h3>
+          <p>Server fires cost cash if ignored — <strong>click them</strong>. PR disasters drain Hype; <strong>Pivot</strong> clears them for a fee. Caffeinate the team before burnout.</p>
+        </div>
+        <div class="htp-card">
+          <div class="htp-icon">▲</div>
+          <h3>STAY HYPED</h3>
+          <p><strong>Launch Feature</strong> stunts and viral employee moments keep Hype up. High Hype = more revenue per product and happier VCs.</p>
+        </div>
+      </div>
+      <div class="htp-meters">
+        <div class="htp-meter-info">
+          <span class="meter-label runway">CASH</span>
+          <p>Your bank account. Salaries + rent burn it; MRR refills it. Hits zero = Game Over.</p>
+        </div>
+        <div class="htp-meter-info">
+          <span class="meter-label hype">HYPE</span>
+          <p>Multiplies product revenue and unlocks funding rounds. Decays constantly. Feed it.</p>
+        </div>
+      </div>
+      <button id="btn-back-to-menu" class="btn btn-ghost">← BACK</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LOADING SCREEN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="loading-screen" class="screen">
+    <div class="loading-content">
+      <div class="loading-logo">AI STARTUP PANIC</div>
+      <div class="loading-bar-container">
+        <div id="loading-bar" class="loading-bar"></div>
+      </div>
+      <div id="loading-status" class="loading-status">Bootstrapping disruption engine...</div>
+      <div class="loading-sub">Raising Series A in background thread...</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       GAME CANVAS
+  ═══════════════════════════════════════════════════════ -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HUD OVERLAY (shown during gameplay)
+  ═══════════════════════════════════════════════════════ -->
+  <div id="hud" class="hidden">
+
+    <!-- Top Bar -->
+    <div class="hud-top-bar">
+      <div class="hud-brand">AI STARTUP PANIC</div>
+      <div class="hud-meters">
+        <!-- Cash -->
+        <div class="meter-group">
+          <div class="meter-header">
+            <span class="meter-label runway">CASH</span>
+            <span id="cash-value" class="meter-value">$60.0K</span>
+          </div>
+          <div class="meter-sub">
+            <span id="net-value" class="net-negative">-$80/s</span>
+            <span id="runway-days" class="runway-days">runway 250d</span>
+          </div>
+        </div>
+        <!-- Hype Meter -->
+        <div class="meter-group">
+          <div class="meter-header">
+            <span class="meter-label hype">HYPE</span>
+            <span id="hype-value" class="meter-value accent-cyan">25</span>
+          </div>
+          <div class="meter-track">
+            <div id="hype-fill" class="meter-fill hype-fill"></div>
+          </div>
+        </div>
+      </div>
+      <div class="hud-score-block">
+        <div class="score-label"><span id="round-display">NEXT: PRE-SEED</span></div>
+        <div id="valuation-display" class="score-value">$0</div>
+      </div>
+    </div>
+
+    <!-- Event Queue -->
+    <div id="event-queue" class="hud-event-queue">
+      <!-- Active events injected here -->
+    </div>
+
+    <!-- Dev Progress Card -->
+    <div id="dev-progress-card" class="dev-progress-card hidden">
+      <div class="dev-progress-header">
+        <span id="dev-product-name" class="dev-progress-title">—</span>
+        <span id="dev-progress-pct" class="accent-cyan">0%</span>
+      </div>
+      <div class="meter-track">
+        <div id="dev-progress-fill" class="meter-fill dev-fill"></div>
+      </div>
+      <div id="dev-team-power" class="dev-progress-sub">team speed 0.0×</div>
+    </div>
+
+    <!-- Employee Status Bar -->
+    <div id="employee-status" class="hud-employee-bar">
+      <!-- Employee chips injected here -->
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="hud-action-panel">
+      <div class="action-panel-label">ACTIONS</div>
+      <div class="action-buttons">
+        <button id="btn-build" class="action-btn action-cyan" title="Buy desks and computers">
+          <span class="action-icon">🪑</span>
+          <span class="action-label">BUILD</span>
+          <span class="action-cd">$6K+</span>
+        </button>
+        <button id="btn-hire" class="action-btn action-cyan" title="Hire employees (needs a free desk)">
+          <span class="action-icon">🧑‍💻</span>
+          <span class="action-label">HIRE</span>
+          <span class="action-cd">$1.5K</span>
+        </button>
+        <button id="btn-develop" class="action-btn action-cyan" title="Start developing an absurd product">
+          <span class="action-icon">📦</span>
+          <span class="action-label">DEVELOP</span>
+          <span class="action-cd">FREE</span>
+        </button>
+        <button id="btn-launch-feature" class="action-btn action-amber" title="Marketing stunt: Hype burst (8s cooldown)">
+          <span class="action-icon">▲</span>
+          <span class="action-label">LAUNCH FEATURE</span>
+          <span class="action-cd" id="cd-launch">READY</span>
+        </button>
+        <button id="btn-vc-pitch" class="action-btn action-amber" title="Pitch the current funding round in the VC room">
+          <span class="action-icon">◆</span>
+          <span class="action-label">PITCH TO VC</span>
+          <span class="action-cd" id="cd-pitch">READY</span>
+        </button>
+        <button id="btn-caffeinate" class="action-btn action-amber" title="Coffee run: restore employee energy ($400)">
+          <span class="action-icon">☕</span>
+          <span class="action-label">CAFFEINATE</span>
+          <span class="action-cd" id="cd-caffeine">READY</span>
+        </button>
+        <button id="btn-pivot" class="action-btn action-magenta" title="Emergency rebrand: clear PR disasters ($8K)">
+          <span class="action-icon">↻</span>
+          <span class="action-label">PIVOT</span>
+          <span class="action-cd" id="cd-pivot">READY</span>
+        </button>
+      </div>
+      <div class="action-hints">
+        <span>WASD: Move Camera</span>
+        <span>Drag: Rotate</span>
+        <span>Scroll: Zoom</span>
+        <span>Click Fires: Extinguish</span>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Pause Button -->
+    <button id="btn-pause" class="hud-pause-btn">⏸ PAUSE</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       VC PITCH MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="vc-pitch-modal" class="modal hidden">
+    <div class="modal-content pitch-modal">
+      <div class="modal-header">
+        <h2>PITCH SESSION <span id="pitch-timer-display" class="accent-cyan">20s</span></h2>
+        <div class="pitch-timer-bar-track">
+          <div id="pitch-timer-bar" class="pitch-timer-bar"></div>
+        </div>
+      </div>
+      <div id="pitch-round-info" class="pitch-round-info"></div>
+      <p class="pitch-instruction">Select <strong>3 buzzwords</strong> to construct your pitch narrative:</p>
+      <div id="buzzword-grid" class="buzzword-grid">
+        <!-- Buzzwords injected dynamically -->
+      </div>
+      <div class="pitch-preview">
+        <span class="pitch-preview-label">YOUR PITCH:</span>
+        <span id="pitch-preview-text" class="pitch-preview-text">"Our platform leverages..."</span>
+      </div>
+      <div class="modal-footer">
+        <div class="pitch-hype-preview">
+          Projected: <span id="pitch-funding-estimate" class="accent-cyan">$0</span>
+          <span id="pitch-verdict" class="pitch-verdict"></span>
+        </div>
+        <button id="btn-deliver-pitch" class="btn btn-primary" disabled>DELIVER PITCH</button>
+        <button id="btn-cancel-pitch" class="btn btn-ghost btn-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HIRE MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="hire-modal" class="modal hidden">
+    <div class="modal-content hire-modal-content">
+      <div class="modal-header">
+        <h2>HIRE <span class="accent-cyan">TALENT</span></h2>
+      </div>
+      <p id="hire-note" class="modal-note">Signing bonus $1.5K · salary paid per second.</p>
+      <div id="candidate-list" class="candidate-list">
+        <!-- Candidate cards injected here -->
+      </div>
+      <div class="modal-footer">
+        <button id="btn-close-hire" class="btn btn-ghost btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       BUILD MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="build-modal" class="modal hidden">
+    <div class="modal-content build-modal-content">
+      <div class="modal-header">
+        <h2>BUILD <span class="accent-cyan">OFFICE</span></h2>
+      </div>
+      <div id="build-options" class="build-options">
+        <!-- Build options injected here -->
+      </div>
+      <div class="modal-footer">
+        <button id="btn-close-build" class="btn btn-ghost btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DEVELOP MODAL
+  ═══════════════════════════════════════════════════════ -->
+  <div id="develop-modal" class="modal hidden">
+    <div class="modal-content develop-modal-content">
+      <div class="modal-header">
+        <h2>DEVELOP <span class="accent-cyan">PRODUCT</span></h2>
+      </div>
+      <p id="develop-note" class="modal-note">Pick the next absurd product.</p>
+      <div id="product-choice-list" class="candidate-list">
+        <!-- Product idea cards injected here -->
+      </div>
+      <div class="modal-footer">
+        <button id="btn-close-develop" class="btn btn-ghost btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PAUSE SCREEN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="pause-screen" class="screen hidden">
+    <div class="pause-content">
+      <h2>PAUSED</h2>
+      <p class="pause-sub">The burn rate waits for no one.</p>
+      <div class="pause-buttons">
+        <button id="btn-resume" class="btn btn-primary">RESUME</button>
+        <button id="btn-quit-to-menu" class="btn btn-ghost">QUIT TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       GAME OVER SCREEN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="game-over-screen" class="screen hidden">
+    <div class="menu-bg-grid"></div>
+    <div class="game-over-content">
+      <div class="game-over-tag">BANK ACCOUNT: $0</div>
+      <h1 class="game-over-title">CASH <span class="accent-error">DEPLETED</span></h1>
+      <p class="game-over-sub">Payroll bounced. The espresso machine has been repossessed.<br/>Your employees are already posting "open to work".</p>
+      <div class="game-over-stats" id="game-over-stats">
+        <!-- Stats injected here -->
+      </div>
+      <div class="game-over-buttons">
+        <button id="btn-restart" class="btn btn-primary btn-large">PIVOT HARDER</button>
+        <button id="btn-go-home" class="btn btn-ghost">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       WIN SCREEN
+  ═══════════════════════════════════════════════════════ -->
+  <div id="win-screen" class="screen hidden">
+    <div class="menu-bg-grid"></div>
+    <div class="win-content">
+      <div class="win-tag">SERIES C CLOSED</div>
+      <h1 class="win-title">IPO <span class="accent-cyan">SUCCESSFUL</span></h1>
+      <p class="win-sub">You've disrupted the disruption industry.<br/>The absurd product portfolio has been packaged as SaaS.</p>
+      <div class="win-stats" id="win-stats">
+        <!-- Stats injected here -->
+      </div>
+      <div class="win-buttons">
+        <button id="btn-play-again" class="btn btn-primary btn-large">DISRUPT AGAIN</button>
+        <button id="btn-win-home" class="btn btn-ghost">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Glitch overlay (intensifies as runway depletes) -->
+  <div id="glitch-overlay" class="glitch-overlay hidden"></div>
+
+  <!-- Load Three.js globally, then load the game module -->
+  <script src="js/lib/three.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
