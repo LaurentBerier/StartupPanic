@@ -1,19 +1,19 @@
 /**
- * scene.js — Three.js scene, camera, renderer, and lighting setup for AI Startup Panic Simulator.
- * Obsidian void skybox, PBR lighting, tone mapping, resize handling.
+ * scene.js  Three.js scene, camera, renderer, and lighting setup for Startup Panic Simulator.
+ * Bright SaaS-pop backdrop, PBR lighting, tone mapping, resize handling.
  */
 
 // THREE is loaded globally via <script src="js/lib/three.min.js">
 const THREE = window.THREE;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+//  Constants 
 const FOV          = 55;
 const NEAR         = 0.1;
 const FAR          = 200;
 const CAMERA_POS   = { x: 0, y: 7, z: 12 };
 const CAMERA_LOOK  = { x: 0, y: 0, z: 0 };
 
-// ─── Module State ─────────────────────────────────────────────────────────────
+//  Module State 
 let scene, camera, renderer, composer;
 let ambientLight, directionalLight, rimLight;
 let fireLights = [];  // Dynamic point lights for active fire events
@@ -23,15 +23,15 @@ export function getCamera()   { return camera; }
 export function getRenderer() { return renderer; }
 export function getFireLights() { return fireLights; }
 
-// ─── Initialize ───────────────────────────────────────────────────────────────
+//  Initialize 
 export function initScene(canvas) {
-  // ── Scene ──
+  //  Scene 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050505);
+  scene.background = new THREE.Color(0xedeff7);
   // Subtle fog for depth
-  scene.fog = new THREE.FogExp2(0x050505, 0.04);
+  scene.fog = new THREE.FogExp2(0xedeff7, 0.035);
 
-  // ── Camera ──
+  //  Camera 
   camera = new THREE.PerspectiveCamera(
     FOV,
     canvas.clientWidth / canvas.clientHeight,
@@ -41,7 +41,7 @@ export function initScene(canvas) {
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z);
   camera.lookAt(CAMERA_LOOK.x, CAMERA_LOOK.y, CAMERA_LOOK.z);
 
-  // ── Renderer ──
+  //  Renderer 
   renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -56,21 +56,21 @@ export function initScene(canvas) {
   renderer.toneMappingExposure = 1.2;
   renderer.outputEncoding      = THREE.sRGBEncoding;
 
-  // ── Lighting ──
+  //  Lighting 
   setupLighting();
 
-  // ── Resize Handling ──
+  //  Resize Handling 
   window.addEventListener('resize', onResize);
 
   return { scene, camera, renderer };
 }
 
 function setupLighting() {
-  // Ambient IBL-style light — cool blue-gray to match obsidian void
-  ambientLight = new THREE.AmbientLight(0x1a2030, 0.8);
+  // Ambient IBL-style light for the bright SaaS-pop backdrop
+  ambientLight = new THREE.AmbientLight(0xf6f7ff, 1.0);
   scene.add(ambientLight);
 
-  // Primary directional light — cool white, top-front
+  // Primary directional light  cool white, top-front
   directionalLight = new THREE.DirectionalLight(0xe8f0ff, 1.6);
   directionalLight.position.set(4, 10, 6);
   directionalLight.castShadow = true;
@@ -85,18 +85,18 @@ function setupLighting() {
   directionalLight.shadow.bias          = -0.001;
   scene.add(directionalLight);
 
-  // Rim light — cyan from below-back for that high-fashion obsidian feel
-  rimLight = new THREE.DirectionalLight(0x00ffff, 0.4);
+  // Rim light  indigo from below-back to keep silhouettes crisp
+  rimLight = new THREE.DirectionalLight(0x4d6bff, 0.35);
   rimLight.position.set(-5, -2, -8);
   scene.add(rimLight);
 
-  // Secondary fill — warm amber from side (suggests desk lamp / screen glow)
+  // Secondary fill  warm amber from side (suggests desk lamp / screen glow)
   const fillLight = new THREE.PointLight(0xffb300, 0.6, 20);
   fillLight.position.set(-3, 2, -2);
   scene.add(fillLight);
 
   // Subtle hemisphere for sky/ground gradient
-  const hemiLight = new THREE.HemisphereLight(0x0a1020, 0x050505, 0.3);
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xedeff7, 0.35);
   scene.add(hemiLight);
 }
 

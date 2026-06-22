@@ -1,5 +1,5 @@
 /**
- * cameraControls.js — Orbit-style camera controls for Pre-Revenue.
+ * cameraControls.js  Orbit-style camera controls for Pre-Revenue.
  * Mouse drag to rotate, scroll to zoom, WASD for panning.
  * Uses spring damping for smooth feel.
  */
@@ -146,7 +146,7 @@ export class CameraControls {
   }
 
   update(dt) {
-    // WASD panning — move target along horizontal plane
+    // WASD panning  move target along horizontal plane
     const panSpeed = 4 * dt;
     if (this._keys.w) this._velPhi   -= panSpeed * 0.05;
     if (this._keys.s) this._velPhi   += panSpeed * 0.05;

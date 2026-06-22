@@ -1,12 +1,12 @@
 @echo off
 setlocal
 set PORT=8741
-title AI Startup Panic - Local Server
+title Startup Panic - Local Server
 
 cd /d "%~dp0"
 
 echo.
-echo  AI Startup Panic ^(Tycoon^) - local server
+echo  Startup Panic ^(Tycoon^) - local server
 echo  =========================================
 echo.
 
@@ -24,7 +24,13 @@ echo.
 echo  Keep this window open while playing. Press Ctrl+C to stop.
 echo.
 
-call npx -y http-server -p %PORT% -c-1
+set PORT=%PORT%
+py -3 serve.py
+if errorlevel 1 (
+  echo.
+  echo  Python launcher failed, trying python directly...
+  python serve.py
+)
 
 echo.
 echo  ------------------------------------------------------------

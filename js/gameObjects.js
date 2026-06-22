@@ -1,5 +1,5 @@
 /**
- * gameObjects.js — All 3D game entity classes for AI Startup Panic Simulator.
+ * gameObjects.js  All 3D game entity classes for Startup Panic Simulator.
  *
  * Every object uses a root THREE.Group so gameplay code stays stable
  * when real GLB assets replace placeholders.
@@ -10,7 +10,7 @@
 
 const THREE = window.THREE;
 
-// ─── Color Constants (Style Guide) ───────────────────────────────────────────
+//  Color Constants (Style Guide) 
 export const COLORS = {
   obsidianDeep:   0x0A0A0A,
   obsidianMid:    0x1F1F1F,
@@ -29,7 +29,7 @@ export const COLORS = {
   glass:          0x88CCFF,
 };
 
-// ─── Shared Materials Cache ────────────────────────────────────────────────────
+//  Shared Materials Cache 
 const matCache = {};
 function cachedMat(key, factory) {
   if (!matCache[key]) matCache[key] = factory();
@@ -62,12 +62,12 @@ function glowMat(color, emissiveIntensity = 1) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PLATFORM — Office Diorama Base
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  PLATFORM  Office Diorama Base
+// 
 export class OfficePlatform {
   constructor() {
-    // ASSET_SLOT: office_diorama_platform — replace with GLB
+    // ASSET_SLOT: office_diorama_platform  replace with GLB
     this.root = new THREE.Group();
     this._build();
   }
@@ -76,7 +76,7 @@ export class OfficePlatform {
     const root = this.root;
     const concrete = (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.0, roughness: 0.95 });
 
-    // Slab / walls / floor — materials kept so setTier() can recolor them
+    // Slab / walls / floor  materials kept so setTier() can recolor them
     this.slabMat = concrete(0x3b3a38);
     const slab = new THREE.Mesh(new THREE.BoxGeometry(10, 0.4, 8), this.slabMat);
     slab.castShadow = slab.receiveShadow = true;
@@ -107,7 +107,7 @@ export class OfficePlatform {
     const deskFloor = new THREE.Mesh(new THREE.BoxGeometry(6, 0.02, 5), this.floorMat);
     deskFloor.position.set(0, 0.21, 0.5); deskFloor.receiveShadow = true; root.add(deskFloor);
 
-    // ── Garage props (only visible at tier 0) ──
+    //  Garage props (only visible at tier 0) 
     this.garageGroup = new THREE.Group(); root.add(this.garageGroup);
     const slatMat = new THREE.MeshStandardMaterial({ color: 0x6b6b70, metalness: 0.45, roughness: 0.6 });
     for (let i = 0; i < 8; i++) {
@@ -129,7 +129,7 @@ export class OfficePlatform {
       this.garageGroup.add(box);
     }
 
-    // ── Office accents (revealed when you expand: cyan edges + glass walls) ──
+    //  Office accents (revealed when you expand: cyan edges + glass walls) 
     this.officeGroup = new THREE.Group(); this.officeGroup.visible = false; root.add(this.officeGroup);
     const edgeMat = new THREE.MeshStandardMaterial({ color: COLORS.cyan, emissive: new THREE.Color(COLORS.cyan), emissiveIntensity: 0.8 });
     for (const cfg of [
@@ -156,7 +156,7 @@ export class OfficePlatform {
     this.setTier(0);
   }
 
-  /** Transform the office look for an expansion tier (0 garage → 2 sleek). */
+  /** Transform the office look for an expansion tier (0 garage  2 sleek). */
   setTier(n) {
     this.tier = n;
     if (this.garageGroup) this.garageGroup.visible = (n === 0);
@@ -176,14 +176,14 @@ export class OfficePlatform {
   addToScene(scene) { scene.add(this.root); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  COMPANY SIGN — a wall panel showing the startup's name (CanvasTexture text)
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  COMPANY SIGN  a wall panel showing the startup's name (CanvasTexture text)
+// 
 export function makeCompanySign(name, tier = 0) {
   const root = new THREE.Group();
   const handdrawn = tier === 0;
 
-  // Backing board — cardboard in the garage, dark panel once you've grown
+  // Backing board  cardboard in the garage, dark panel once you've grown
   const board = new THREE.Mesh(
     new THREE.BoxGeometry(3.8, 0.95, 0.1),
     new THREE.MeshStandardMaterial({ color: handdrawn ? 0x9c7a45 : 0x14141a, metalness: handdrawn ? 0 : 0.3, roughness: handdrawn ? 1 : 0.7 })
@@ -275,18 +275,18 @@ export function makeDeskMarker() {
   return g;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 //  OFFICE FURNITURE
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 export class OfficeFurniture {
   constructor() {
-    // ASSET_SLOT: minimal_office_furniture — replace with GLB
+    // ASSET_SLOT: minimal_office_furniture  replace with GLB
     this.root = new THREE.Group();
     this._build();
   }
 
   _build() {
-    // Central desk/chair/monitors removed — the only workstation is the
+    // Central desk/chair/monitors removed  the only workstation is the
     // founder's DeskStation on the left. Server racks stay (fires need them).
     this._buildServerRacks();
   }
@@ -344,7 +344,7 @@ export class OfficeFurniture {
   }
 
   _buildServerRacks() {
-    // Two low, flat server units sitting flat on the floor — fires spawn here
+    // Two low, flat server units sitting flat on the floor  fires spawn here
     const rackMat = obsidianMat(0x111111);
     const rackPositions = [
       { x: -3.5, z: -2.5, name: 'rack_left'  },
@@ -357,7 +357,7 @@ export class OfficeFurniture {
       const rack = new THREE.Group();
       rack.name = cfg.name;
 
-      // Flat low chassis (1.0 w × 0.34 h × 0.7 d), bottom resting on the floor
+      // Flat low chassis (1.0 w  0.34 h  0.7 d), bottom resting on the floor
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.34, 0.7), rackMat.clone());
       body.castShadow = body.receiveShadow = true;
       rack.add(body);
@@ -384,7 +384,7 @@ export class OfficeFurniture {
         rack.userData.leds.push(led);
       }
 
-      rack.position.set(cfg.x, 0.17, cfg.z); // center at 0.17 → sits flat on the floor
+      rack.position.set(cfg.x, 0.17, cfg.z); // center at 0.17  sits flat on the floor
       this.serverRacks.push(rack);
       this.root.add(rack);
     }
@@ -462,6 +462,7 @@ export class OfficeFurniture {
   setRackDown(idx, down) {
     const rack = this.serverRacks && this.serverRacks[idx];
     if (!rack) return;
+    rack.visible = !down;
     const col = down ? COLORS.error : COLORS.success;
     for (const led of (rack.userData.leds || [])) {
       led.material.color.set(col);
@@ -489,12 +490,12 @@ export class OfficeFurniture {
   addToScene(scene) { scene.add(this.root); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  MERCURY AI CORE — Liquid mercury sphere with custom shader displacement
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  MERCURY AI CORE  Liquid mercury sphere with custom shader displacement
+// 
 export class MercuryAICore {
   constructor() {
-    // ASSET_SLOT: mercury_ai_core — replace with GLB + retain shader wrapper
+    // ASSET_SLOT: mercury_ai_core  replace with GLB + retain shader wrapper
     this.root = new THREE.Group();
     this._time = 0;
     this._hypeLevel = 0;    // 0..1 drives visual intensity
@@ -585,7 +586,7 @@ export class MercuryAICore {
           vec3 viewDir = normalize(vec3(0.0, 0.5, 1.0) - vPosition);
           float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 3.0);
 
-          // Base metallic color — silver-gray
+          // Base metallic color  silver-gray
           vec3 base = uBaseColor * (0.5 + 0.5 * n.y);
 
           // Env reflection tint
@@ -637,14 +638,14 @@ export class MercuryAICore {
   }
 
   /**
-   * Set hype level (0..1) — drives cyan glow intensity.
+   * Set hype level (0..1)  drives cyan glow intensity.
    */
   setHype(level) {
     this._hypeLevel = Math.max(0, Math.min(1, level));
   }
 
   /**
-   * Set stress level (0..1) — drives surface turbulence and magenta flash.
+   * Set stress level (0..1)  drives surface turbulence and magenta flash.
    */
   setStress(level) {
     this._stressLevel = Math.max(0, Math.min(1, level));
@@ -696,9 +697,9 @@ export class MercuryAICore {
   addToScene(scene) { scene.add(this.root); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  SERVER FIRE — Physical fire placeholder on a server rack
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  SERVER FIRE  Physical fire placeholder on a server rack
+// 
 export class ServerFire {
   constructor(position) {
     this.root       = new THREE.Group();
@@ -826,9 +827,9 @@ export class ServerFire {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  HYPE CONFETTI — Particle burst on successful actions
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  HYPE CONFETTI  Particle burst on successful actions
+// 
 export class HypeConfetti {
   constructor(origin, scene) {
     this.root   = new THREE.Group();
@@ -922,9 +923,9 @@ export class HypeConfetti {
   get done() { return this._done; }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  STEAM PUFF — extinguish FX (white/blue burst + flash). Shares confetti API.
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  STEAM PUFF  extinguish FX (white/blue burst + flash). Shares confetti API.
+// 
 export class SteamPuff {
   constructor(origin, scene) {
     this.root = new THREE.Group();
@@ -970,9 +971,9 @@ export class SteamPuff {
   get done() { return this._done; }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  DESK STATIONS — buildable workstations where hired employees sit
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  DESK STATIONS  buildable workstations where hired employees sit
+// 
 export const DESK_SLOT_POSITIONS = [
   { x: -3.6, z: -1.0 }, { x: -2.2, z: -1.0 },
   { x: -3.6, z:  0.6 }, { x: -2.2, z:  0.6 },
@@ -1050,7 +1051,7 @@ export class EmployeeCharacter {
       tie.position.set(0, 0.24, 0.115);
       this.root.add(tie);
     } else if (!walker) {
-      // Energy halo above the head: green → amber → red
+      // Energy halo above the head: green  amber  red
       this.energyMat = new THREE.MeshStandardMaterial({
         color: COLORS.success,
         emissive: new THREE.Color(COLORS.success),
@@ -1178,14 +1179,14 @@ export class EmployeeCharacter {
  * optional employee character.
  */
 export class DeskStation {
-  constructor(slotIndex, hasComputer = false) {
+  constructor(slotIndex, hasComputer = false, position = null) {
     this.root      = new THREE.Group();
     this.slotIndex = slotIndex;
     this.character = null;
     this._build();
     this.monitorGroup.visible = hasComputer;
 
-    const slot = DESK_SLOT_POSITIONS[slotIndex % DESK_SLOT_POSITIONS.length];
+    const slot = position || DESK_SLOT_POSITIONS[slotIndex % DESK_SLOT_POSITIONS.length];
     this.root.position.set(slot.x, 0, slot.z);
   }
 
@@ -1229,7 +1230,7 @@ export class DeskStation {
     pole.position.set(0, 0.16, 0.65);
     root.add(pole);
 
-    // Computer (monitor + base) — hidden until purchased
+    // Computer (monitor + base)  hidden until purchased
     this.monitorGroup = new THREE.Group();
     const screen = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.32, 0.025), obsidianMat(0x0A0A0A));
     this.monitorGroup.add(screen);
@@ -1264,6 +1265,10 @@ export class DeskStation {
     this.root.add(this.character.root);
   }
 
+  clearEmployee() {
+    if (this.character) { this.root.remove(this.character.root); this.character = null; }
+  }
+
   setEnergy(level, burnedOut) {
     if (this.character) this.character.setEnergy(level, burnedOut);
   }
@@ -1279,9 +1284,9 @@ export class DeskStation {
   addToScene(scene) { scene.add(this.root); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PRODUCT SHOWCASE — shipped absurd products float along the back wall
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  PRODUCT SHOWCASE  shipped absurd products float along the back wall
+// 
 export class ProductShowcase {
   constructor() {
     this.root     = new THREE.Group();
@@ -1344,9 +1349,9 @@ export class ProductShowcase {
   addToScene(scene) { scene.add(this.root); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  FACILITIES — buildable devices & rooms placed around the office
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  FACILITIES  buildable devices & rooms placed around the office
+// 
 const FACILITY_SPOTS = {
   espresso:   { x: -1.0, z:  3.2 },
   gpu:        { x:  3.7, z: -0.6 },
@@ -1542,9 +1547,9 @@ export function buildFacility(id) {
   return root;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PITCH ROOM — VC meeting corner. VCs materialize when you pitch.
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  PITCH ROOM  VC meeting corner. VCs materialize when you pitch.
+// 
 export class PitchRoom {
   constructor() {
     this.root = new THREE.Group();

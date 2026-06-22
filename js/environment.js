@@ -1,5 +1,5 @@
 /**
- * environment.js — Ambient environment elements for the Pre-Revenue void.
+ * environment.js  Ambient environment elements for the Pre-Revenue void.
  *
  * Creates:
  *  - Floating void particles (distant dots suggesting infinite depth)
@@ -10,7 +10,7 @@
 
 const THREE = window.THREE;
 
-// ─── Void Particles ────────────────────────────────────────────────────────────
+//  Void Particles 
 export class VoidParticles {
   constructor() {
     this.root = new THREE.Group();
@@ -24,7 +24,7 @@ export class VoidParticles {
     const colors    = new Float32Array(count * 3);
     const sizes     = new Float32Array(count);
 
-    // Color palette — very dim cyans, magentas, neutral blues
+    // Color palette  very dim cyans, magentas, neutral blues
     const palette = [
       [0, 0.08, 0.08],   // very dim cyan
       [0.08, 0, 0.08],   // very dim magenta
@@ -77,11 +77,11 @@ export class VoidParticles {
   addToScene(scene) { scene.add(this.root); }
 }
 
-// ─── Grid Plane (infinite floor grid suggestion) ─────────────────────────────
+//  Grid Plane (infinite floor grid suggestion) 
 export function createVoidGrid() {
   const group = new THREE.Group();
 
-  // A very subtle grid far below — suggests infinite corporate void
+  // A very subtle grid far below  suggests infinite corporate void
   const gridHelper = new THREE.GridHelper(100, 50, 0x1a1a2e, 0x0D0D1A);
   gridHelper.position.y = -8;
   gridHelper.material.transparent = true;
@@ -91,11 +91,11 @@ export function createVoidGrid() {
   return group;
 }
 
-// ─── Ambient Glow Orbs ────────────────────────────────────────────────────────
+//  Ambient Glow Orbs 
 export function createAmbientOrbs() {
   const group = new THREE.Group();
 
-  // Distant glow spheres — visual depth anchors
+  // Distant glow spheres  visual depth anchors
   const orbDefs = [
     { pos: [-12, -3, -8],  color: 0x001133, size: 2.0, opacity: 0.4 },
     { pos: [ 14, -2, -10], color: 0x110022, size: 1.5, opacity: 0.3 },
@@ -128,7 +128,7 @@ export function createAmbientOrbs() {
   return group;
 }
 
-// ─── Floating Data Stream Lines ───────────────────────────────────────────────
+//  Floating Data Stream Lines 
 export class DataStreams {
   constructor() {
     this.root    = new THREE.Group();

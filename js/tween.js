@@ -1,9 +1,9 @@
 /**
- * tween.js — Lightweight tween/spring utility for Pre-Revenue
+ * tween.js  Lightweight tween/spring utility for Pre-Revenue
  * No skeletal animations: all motion via lerp, spring, and easing functions.
  */
 
-// ─── Easing Functions ─────────────────────────────────────────────────────────
+//  Easing Functions 
 export const Ease = {
   linear:       t => t,
   inQuad:       t => t * t,
@@ -23,7 +23,7 @@ export const Ease = {
   },
 };
 
-// ─── Active Tweens Pool ───────────────────────────────────────────────────────
+//  Active Tweens Pool 
 const activeTweens = new Set();
 
 /**

@@ -3,21 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Startup Panic Simulator</title>
+  <meta name="theme-color" content="#F5F6FB" />
+  <title>Startup Panic Simulator</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        MAIN MENU SCREEN
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="main-menu" class="screen active">
     <div class="menu-bg-grid"></div>
     <div class="menu-content">
       <div class="logo-block">
         <div class="logo-tag">SERIES A PENDING</div>
-        <h1 class="logo-title">AI STARTUP <span class="accent-cyan">PANIC</span></h1>
-        <p class="logo-subtitle">A Satirical AI Startup Tycoon Simulator</p>
+        <h1 class="logo-title">STARTUP <span class="accent-cyan">PANIC</span></h1>
+        <p class="logo-subtitle">A Satirical Startup Tycoon Simulator</p>
       </div>
       <div class="menu-description">
         <p>You are the founder, in a garage, with one desk and a terrible idea.<br/>
@@ -26,8 +27,8 @@
       <div class="founder-setup">
         <label class="setup-label" for="company-name-input">NAME YOUR STARTUP</label>
         <div class="setup-row">
-          <input id="company-name-input" class="company-name-input" type="text" maxlength="24" placeholder="SynergyGPT" autocomplete="off" />
-          <button id="btn-reroll-name" class="btn btn-ghost btn-sm" title="Suggest a name">🎲</button>
+          <input id="company-name-input" class="company-name-input" type="text" maxlength="24" placeholder="Disruptr" autocomplete="off" />
+          <button id="btn-reroll-name" class="btn btn-ghost btn-sm" title="Suggest a name">RANDOM</button>
         </div>
       </div>
       <div class="menu-buttons">
@@ -35,74 +36,74 @@
         <button id="btn-how-to-play" class="btn btn-ghost">HOW TO PLAY</button>
       </div>
       <div class="menu-controls-hint">
-        <span>WASD / Arrow Keys — Navigate</span>
-        <span>Click — Interact</span>
-        <span>Mouse Drag — Rotate Camera</span>
-        <span>Scroll — Zoom</span>
+        <span>WASD / Arrow Keys - Navigate</span>
+        <span>Click - Interact</span>
+        <span>Mouse Drag - Rotate Camera</span>
+        <span>Scroll - Zoom</span>
       </div>
     </div>
     <div class="menu-mercury-bg"></div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        HOW TO PLAY SCREEN
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="how-to-play-screen" class="screen">
     <div class="menu-bg-grid"></div>
     <div class="menu-content how-to-play-content">
       <h2 class="screen-title">HOW TO <span class="accent-cyan">PLAY</span></h2>
       <div class="htp-grid">
         <div class="htp-card">
-          <div class="htp-icon">🪑</div>
-          <h3>BUILD THE OFFICE</h3>
+          <div class="htp-icon">BUY</div>
+          <h3>BUY THE OFFICE</h3>
           <p>Buy <strong>desks</strong> to create seats, and <strong>computers</strong> so your hires don't work at half speed. No desk, no hire.</p>
         </div>
         <div class="htp-card">
-          <div class="htp-icon">🧌</div>
+          <div class="htp-icon">HIRE</div>
           <h3>HIRE WEIRDOS</h3>
           <p>Every candidate has a <strong>personality</strong>: 10x Engineers combust, Crypto Bros launch rogue tokens, Zen Masters never burn out. Salaries drain cash every second.</p>
         </div>
         <div class="htp-card">
-          <div class="htp-icon">📦</div>
-          <h3>SHIP ABSURD PRODUCTS</h3>
-          <p>Pick an idea (ToastGPT, NFT Air...) and your team builds it. Shipped products earn <strong>MRR</strong> — boosted by Hype — and unlock funding rounds.</p>
+          <div class="htp-icon">MAKE</div>
+          <h3>INVEST &amp; SHIP</h3>
+          <p>Buy your first server, then pick an idea and set its <strong>AMBITION</strong>: bigger projects cost more up front but are far more likely to <strong>land</strong> at launch. A flop ships anyway - it just barely earns.</p>
         </div>
         <div class="htp-card">
-          <div class="htp-icon">◆</div>
+          <div class="htp-icon">LIVE</div>
+          <h3>LAUNCH = THE BIG BANG</h3>
+          <p>Stealth is calm but not free: no VCs, no chaos, and cash steadily bleeds. Your <strong>first launch</strong> wakes the world - burn jumps, the press circles, disasters begin and funding opens.</p>
+        </div>
+        <div class="htp-card">
+          <div class="htp-icon">VC</div>
           <h3>PITCH IN THE VC ROOM</h3>
-          <p>VCs appear at the pitch table. Combine <strong>buzzwords</strong> and meet each round's product/hype requirements to close <strong>Pre-Seed → Series C</strong>. Close Series C to win.</p>
+          <p>Once you're live, VCs appear. Combine <strong>buzzwords</strong> and meet each round's product/hype bar to close <strong>Pre-Seed -> Series C</strong>. Close Series C to win.</p>
         </div>
         <div class="htp-card">
-          <div class="htp-icon">🔥</div>
+          <div class="htp-icon">FIRE</div>
           <h3>SURVIVE THE CHAOS</h3>
-          <p>Server fires cost cash if ignored — <strong>click them</strong>. PR disasters drain Hype; <strong>Pivot</strong> clears them for a fee. Caffeinate the team before burnout.</p>
-        </div>
-        <div class="htp-card">
-          <div class="htp-icon">▲</div>
-          <h3>STAY HYPED</h3>
-          <p><strong>Launch Feature</strong> stunts and viral employee moments keep Hype up. High Hype = more revenue per product and happier VCs.</p>
+          <p>Once live: server fires cost cash if ignored - <strong>click them</strong>. PR disasters drain Hype; <strong>Pivot</strong> clears them for a fee. Caffeinate the team before burnout.</p>
         </div>
       </div>
       <div class="htp-meters">
         <div class="htp-meter-info">
           <span class="meter-label runway">CASH</span>
-          <p>Your bank account. Salaries + rent burn it; MRR refills it. Hits zero = Game Over.</p>
+          <p>Your bank account. Servers and product funding spend it up front; live products refill it. Stealth bleeds steadily and burn jumps once you launch. Bottoms out = Game Over.</p>
         </div>
         <div class="htp-meter-info">
           <span class="meter-label hype">HYPE</span>
-          <p>Multiplies product revenue and unlocks funding rounds. Decays constantly. Feed it.</p>
+          <p>Multiplies live revenue and unlocks funding rounds. Dormant in stealth - once you launch it decays fast, so feed it.</p>
         </div>
       </div>
-      <button id="btn-back-to-menu" class="btn btn-ghost">← BACK</button>
+      <button id="btn-back-to-menu" class="btn btn-ghost"><- BACK</button>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        LOADING SCREEN
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="loading-screen" class="screen">
     <div class="loading-content">
-      <div class="loading-logo">AI STARTUP PANIC</div>
+      <div class="loading-logo">STARTUP PANIC</div>
       <div class="loading-bar-container">
         <div id="loading-bar" class="loading-bar"></div>
       </div>
@@ -111,45 +112,51 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        GAME CANVAS
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        HUD OVERLAY (shown during gameplay)
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="hud" class="hidden">
 
     <!-- Top Bar -->
     <div class="hud-top-bar">
-      <div class="hud-brand">AI STARTUP PANIC</div>
-      <div class="hud-meters">
-        <!-- Cash -->
-        <div class="meter-group">
-          <div class="meter-header">
-            <span class="meter-label runway">CASH</span>
-            <span id="cash-value" class="meter-value">$60.0K</span>
-          </div>
-          <div class="meter-sub">
-            <span id="net-value" class="net-negative">-$80/s</span>
-            <span id="runway-days" class="runway-days">runway 250d</span>
-          </div>
+      <div class="hud-brand">STARTUP PANIC</div>
+      <div class="hud-bankroll">
+        <div class="bankroll-label">TOTAL CASH</div>
+        <div id="cash-value" class="bankroll-value">$30,000</div>
+        <div class="bankroll-sub">
+          <span id="net-value" class="net-negative">-$50/s</span>
+          <span id="runway-days" class="runway-days">runway infinity</span>
         </div>
+      </div>
+      <div class="hud-meters">
         <!-- Hype Meter -->
         <div class="meter-group">
           <div class="meter-header">
             <span class="meter-label hype">HYPE</span>
-            <span id="hype-value" class="meter-value accent-cyan">25</span>
+            <span id="hype-value" class="meter-value accent-cyan">10</span>
           </div>
           <div class="meter-track">
             <div id="hype-fill" class="meter-fill hype-fill"></div>
           </div>
+          <div id="hype-help" class="hype-help">Launch products to build Hype.</div>
         </div>
       </div>
       <div class="hud-score-block">
-        <div class="score-label"><span id="round-display">NEXT: PRE-SEED</span></div>
+        <div class="score-label"><span id="round-display">STEALTH MODE</span></div>
         <div id="valuation-display" class="score-value">$0</div>
+      </div>
+      <!-- Rotating "hot category" market trend (live only) -->
+      <div id="market-trend" class="market-trend hidden" title="A hot category is trending - products in it earn more MRR this week.">
+        <span id="market-trend-icon" class="market-trend-icon"></span>
+        <div class="market-trend-text">
+          <span class="market-trend-tag">TRENDING</span>
+          <span id="market-trend-label" class="market-trend-label">AI</span>
+        </div>
       </div>
     </div>
 
@@ -158,16 +165,17 @@
       <!-- Active events injected here -->
     </div>
 
-    <!-- Dev Progress Card -->
-    <div id="dev-progress-card" class="dev-progress-card hidden">
-      <div class="dev-progress-header">
-        <span id="dev-product-name" class="dev-progress-title">—</span>
-        <span id="dev-progress-pct" class="accent-cyan">0%</span>
-      </div>
-      <div class="meter-track">
-        <div id="dev-progress-fill" class="meter-fill dev-fill"></div>
-      </div>
-      <div id="dev-team-power" class="dev-progress-sub">team speed 0.0×</div>
+    <div id="placement-hint" class="placement-hint hidden">
+      <div id="placement-title" class="placement-title">Placement mode</div>
+      <div id="placement-text" class="placement-text">Click the target in the office.</div>
+    </div>
+
+    <!-- First-run onboarding for the empty garage start -->
+    <div id="onboarding-card" class="onboarding-card hidden">
+      <div class="onboarding-kicker">GET STARTED</div>
+      <div id="onboarding-title" class="onboarding-title">Set up the garage</div>
+      <div id="onboarding-next" class="onboarding-next">Buy and place your founder desk.</div>
+      <ol id="onboarding-steps" class="onboarding-steps"></ol>
     </div>
 
     <!-- Employee Status Bar -->
@@ -178,49 +186,77 @@
     <!-- Action Buttons -->
     <div class="hud-action-panel">
       <div class="action-panel-label">ACTIONS</div>
+      <div id="dev-progress-card" class="dev-progress-card hidden">
+        <div class="dev-progress-main">
+          <div class="dev-progress-header">
+            <span id="dev-product-name" class="dev-progress-title"></span>
+            <span id="dev-progress-pct" class="accent-cyan">0%</span>
+          </div>
+          <div class="meter-track">
+            <div id="dev-progress-fill" class="meter-fill dev-fill"></div>
+          </div>
+          <div id="dev-team-power" class="dev-progress-sub">team speed 0.0x</div>
+        </div>
+        <div class="dev-tactics">
+          <button class="mini-chip" data-dev-mode="balanced">Balanced</button>
+          <button class="mini-chip" data-dev-mode="fast">Fast</button>
+          <button class="mini-chip" data-dev-mode="polish">Polish</button>
+          <button id="btn-crunch-sprint" class="mini-chip mini-chip-hot">Crunch <span id="cd-crunch">READY</span></button>
+        </div>
+      </div>
       <div class="action-buttons">
-        <button id="btn-build" class="action-btn action-cyan" title="Buy desks and computers">
-          <span class="action-icon">🪑</span>
-          <span class="action-label">BUILD</span>
-          <span class="action-cd">$6K+</span>
+        <button id="btn-build" class="action-btn action-cyan" title="Buy and place desks, servers, computers and facilities">
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12"/><path d="M9 20v-6h6v6"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg></span>
+          <span class="action-label">BUY</span>
+          <span class="action-cd">$3K+</span>
         </button>
         <button id="btn-hire" class="action-btn action-cyan" title="Hire employees (needs a free desk)">
-          <span class="action-icon">🧑‍💻</span>
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21c1.4-4 4-6 7-6s5.6 2 7 6"/></svg></span>
           <span class="action-label">HIRE</span>
           <span class="action-cd">$1.5K</span>
         </button>
-        <button id="btn-research" class="action-btn action-cyan" title="Research first — unlocks weirder, higher-potential products + rooms & buffs">
-          <span class="action-icon">🔬</span>
+        <button id="btn-research" class="action-btn action-cyan" title="Research first - unlocks weirder, higher-potential products + rooms & buffs">
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14"/><path d="M8 17V8l4-3 4 3v9"/><path d="M10 11h4"/></svg></span>
           <span class="action-label">RESEARCH</span>
           <span class="action-cd">TECH</span>
         </button>
         <button id="btn-develop" class="action-btn action-cyan" title="Sit at your desk, then develop a product (name it yourself)">
-          <span class="action-icon">📦</span>
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 9h8M8 13h5"/></svg></span>
           <span class="action-label">DEVELOP PRODUCT</span>
           <span class="action-cd" id="cd-develop">GO TO DESK</span>
         </button>
-        <button id="btn-launch-product" class="action-btn action-amber" title="Launch a developed product → it goes live, earns MRR & spikes Hype">
-          <span class="action-icon">🚀</span>
+        <button id="btn-launch-product" class="action-btn action-amber" title="Launch a developed product -> it goes live, earns MRR & spikes Hype">
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l4 7 5 2-5 2-4 7-4-7-5-2 5-2z"/></svg></span>
           <span class="action-label">LAUNCH PRODUCT</span>
           <span class="action-cd" id="cd-launch-product">NONE</span>
         </button>
+        <button id="btn-ship-update" class="action-btn action-cyan" title="Manage shipped products: refactor, queue features, pricing, version pushes">
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13-6"/><path d="M17 3v5h-5"/><path d="M20 12a8 8 0 0 1-13 6"/><path d="M7 21v-5h5"/></svg></span>
+          <span class="action-label">PRODUCTS</span>
+          <span class="action-cd" id="cd-update">FRESH</span>
+        </button>
+        <button id="btn-marketing" class="action-btn action-magenta" title="Post about your product to gain Hype. Hype also comes from launches, updates, PR wins and growth hires; it drains after launch from attention decay, PR disasters and burnout.">
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11v2a3 3 0 0 0 3 3h2l5 4V4L9 8H7a3 3 0 0 0-3 3z"/><path d="M18 9a4 4 0 0 1 0 6"/><path d="M20 6a8 8 0 0 1 0 12"/></svg></span>
+          <span class="action-label">MARKETING</span>
+          <span class="action-cd" id="cd-marketing">$1.8K</span>
+        </button>
         <button id="btn-vc-pitch" class="action-btn action-amber" title="Pitch the current funding round in the VC room">
-          <span class="action-icon">◆</span>
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11"/><path d="M8 10h8M8 14h5"/><path d="M6 21h12"/></svg></span>
           <span class="action-label">PITCH TO VC</span>
           <span class="action-cd" id="cd-pitch">READY</span>
         </button>
         <button id="btn-caffeinate" class="action-btn action-amber" title="Coffee run: restore employee energy ($400)">
-          <span class="action-icon">☕</span>
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h10v5a5 5 0 0 1-5 5H9a3 3 0 0 1-3-3z"/><path d="M16 9h2a2 2 0 0 1 0 4h-2"/><path d="M8 4v2M12 4v2"/></svg></span>
           <span class="action-label">CAFFEINATE</span>
           <span class="action-cd" id="cd-caffeine">READY</span>
         </button>
         <button id="btn-pivot" class="action-btn action-magenta" title="Emergency rebrand: clear PR disasters ($8K)">
-          <span class="action-icon">↻</span>
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5"/><path d="M18 3v5h-5"/><path d="M20 12a8 8 0 0 1-14 5"/><path d="M6 21v-5h5"/></svg></span>
           <span class="action-label">PIVOT</span>
           <span class="action-cd" id="cd-pivot">READY</span>
         </button>
-        <button id="btn-loan" class="action-btn action-amber" title="Borrow cash now — adds permanent interest to your burn">
-          <span class="action-icon">🏦</span>
+        <button id="btn-loan" class="action-btn action-amber" title="Borrow cash now - adds permanent interest to your burn">
+          <span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M17 7.5c-.8-1.2-2.3-2-4.4-2-2.4 0-4.1 1.1-4.1 2.8 0 4.2 9 1.8 9 6.6 0 2-1.9 3.1-4.8 3.1-2.3 0-4.1-.8-5.2-2.1"/></svg></span>
           <span class="action-label">LOAN</span>
           <span class="action-cd">CASH</span>
         </button>
@@ -235,7 +271,7 @@
 
     <!-- Live social / news feed (right rail) -->
     <div class="social-feed-wrap">
-      <div class="social-feed-title">📡 THE FEED</div>
+      <div class="social-feed-title">THE FEED</div>
       <div id="social-feed" class="social-feed"></div>
     </div>
 
@@ -243,12 +279,12 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Pause Button -->
-    <button id="btn-pause" class="hud-pause-btn">⏸ PAUSE</button>
+    <button id="btn-pause" class="hud-pause-btn">PAUSE</button>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        VC PITCH MODAL
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="vc-pitch-modal" class="modal hidden">
     <div class="modal-content pitch-modal">
       <div class="modal-header">
@@ -277,15 +313,15 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        HIRE MODAL
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="hire-modal" class="modal hidden">
     <div class="modal-content hire-modal-content">
       <div class="modal-header">
         <h2>HIRE <span class="accent-cyan">TALENT</span></h2>
       </div>
-      <p id="hire-note" class="modal-note">Signing bonus $1.5K · salary paid per second.</p>
+      <p id="hire-note" class="modal-note">Signing bonus $1.5K - salary paid per second.</p>
       <div id="candidate-list" class="candidate-list">
         <!-- Candidate cards injected here -->
       </div>
@@ -295,13 +331,13 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       BUILD MODAL
-  ═══════════════════════════════════════════════════════ -->
+  <!-- 
+       BUY MODAL
+   -->
   <div id="build-modal" class="modal hidden">
     <div class="modal-content build-modal-content">
       <div class="modal-header">
-        <h2>CONSTRUCTION <span class="accent-cyan">& FACILITIES</span></h2>
+        <h2>BUY <span class="accent-cyan">& PLACE</span></h2>
       </div>
       <div id="build-options" class="build-options">
         <!-- Build options injected here -->
@@ -312,28 +348,28 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        DEVELOP MODAL
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="develop-modal" class="modal hidden">
     <div class="modal-content develop-modal-content">
       <div class="modal-header">
         <h2>DEVELOP <span class="accent-cyan">PRODUCT</span></h2>
       </div>
-      <p id="develop-note" class="modal-note">Pick the next absurd product.</p>
+      <p id="develop-note" class="modal-note">Pick an idea, set its ambition, and fund it.</p>
       <div id="product-choice-list" class="candidate-list">
         <!-- Product idea cards injected here -->
       </div>
       <div class="modal-footer">
-        <button id="btn-reroll-products" class="btn btn-primary btn-sm">🎲 Randomize Ideas</button>
+        <button id="btn-reroll-products" class="btn btn-primary btn-sm">Randomize Ideas</button>
         <button id="btn-close-develop" class="btn btn-ghost btn-sm">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        LAUNCH PRODUCT MODAL
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="launch-modal" class="modal hidden">
     <div class="modal-content develop-modal-content">
       <div class="modal-header">
@@ -347,9 +383,25 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!--
+       PRODUCT OPS MODAL
+   -->
+  <div id="product-modal" class="modal hidden">
+    <div class="modal-content product-ops-modal-content">
+      <div class="modal-header">
+        <h2>PRODUCT <span class="accent-cyan">OPS</span></h2>
+      </div>
+      <p id="product-ops-note" class="modal-note">Manage live products before they rot into expensive folklore.</p>
+      <div id="product-ops-list" class="product-ops-list"></div>
+      <div class="modal-footer">
+        <button id="btn-close-products" class="btn btn-ghost btn-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 
        BANK LOAN MODAL
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="loan-modal" class="modal hidden">
     <div class="modal-content develop-modal-content">
       <div class="modal-header">
@@ -363,9 +415,9 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        PEDDLER OFFER MODAL
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="peddler-modal" class="modal hidden">
     <div class="modal-content peddler-modal-content">
       <div class="modal-header">
@@ -379,9 +431,42 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <div id="decision-modal" class="modal hidden">
+    <div class="modal-content decision-modal-content">
+      <div class="modal-header">
+        <h2 id="decision-title">DECISION</h2>
+      </div>
+      <p id="decision-text" class="modal-note"></p>
+      <div id="decision-options" class="decision-options"></div>
+      <div id="decision-footer" class="modal-footer hidden">
+        <button id="btn-decision-cancel" class="btn btn-ghost btn-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 
        RESEARCH MODAL
-  ═══════════════════════════════════════════════════════ -->
+   -->
+  <!-- FIREFIGHT QTE MODAL  spray the fires before the clock runs out -->
+  <div id="firefight-modal" class="modal hidden">
+    <div class="modal-content firefight-content">
+      <div class="modal-header">
+        <h2> FIREFIGHT <span class="accent-error">!</span></h2>
+        <div class="firefight-timer-track">
+          <div id="firefight-timer-bar" class="firefight-timer-bar"></div>
+        </div>
+      </div>
+      <p class="modal-note">Spray water over each fire before the timer empties. Clear them all for a clean save and bonus Hype.</p>
+      <div class="firefight-stats">
+        <span id="firefight-popped" class="firefight-count">0</span>
+        <span class="firefight-sep">/</span>
+        <span id="firefight-total" class="firefight-count">0</span>
+        <span class="firefight-stats-label">fires soaked</span>
+      </div>
+      <div id="firefight-arena" class="firefight-arena"></div>
+    </div>
+  </div>
+
   <div id="research-modal" class="modal hidden">
     <div class="modal-content develop-modal-content">
       <div class="modal-header">
@@ -395,9 +480,9 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        PAUSE SCREEN
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="pause-screen" class="screen hidden">
     <div class="pause-content">
       <h2>PAUSED</h2>
@@ -409,9 +494,9 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        GAME OVER SCREEN
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="game-over-screen" class="screen hidden">
     <div class="menu-bg-grid"></div>
     <div class="game-over-content">
@@ -428,9 +513,9 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- 
        WIN SCREEN
-  ═══════════════════════════════════════════════════════ -->
+   -->
   <div id="win-screen" class="screen hidden">
     <div class="menu-bg-grid"></div>
     <div class="win-content">

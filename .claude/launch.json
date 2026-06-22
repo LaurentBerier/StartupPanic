@@ -1,11 +1,12 @@
 {
   "version": "0.0.1",
+  "autoPort": true,
   "configurations": [
     {
       "name": "startup-panic",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["-y", "http-server", "-p", "8741", "-c-1"],
-      "port": 8741
+      "runtimeArgs": ["-y", "http-server", "-c-1"],
+      "port": 8742
     }
   ]
 }
