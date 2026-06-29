@@ -11,6 +11,8 @@
  *  - Server fires, PR disasters, burnout, pivot
  */
 
+import { productBrand } from './brand.js';
+
 import { clamp } from './tween.js';
 
 //  Game Constants 
@@ -22,6 +24,9 @@ export const CONFIG = {
   MRR_HYPE_FLOOR:        0.85,   // revenue multiplier at 0 hype; launched products should earn real money
   MRR_HYPE_SCALE:        0.65,   // extra revenue multiplier at 100 hype
   DEBT_LIMIT:            -75000, // you can run in the red, but bankrupt below this
+  LIFELINE_CASH:         3500,   // below this (and bleeding) a bank or peddler steps in
+  LIFELINE_RUNWAY:       30,     // ...if runway is under this many seconds
+  LIFELINE_COOLDOWN:     [34, 55],
 
   // Product investment & launch odds  starting an ambitious project costs
   // more up front, but it's far more likely to succeed when it launches.
@@ -73,21 +78,22 @@ export const CONFIG = {
   // Events
   FIRE_CASH_DAMAGE:      6000,
   FIRE_DURATION:         13,
-  FIRE_SPAWN_INTERVAL:   [42, 75],   // server meltdowns are now rare, not constant
+  FIRE_SPAWN_INTERVAL:   [72, 120],  // server meltdowns are now rare, not constant
   SERVER_COST:           7000,    // real infrastructure - the priciest of the buy trio (and the cost to replace a fire-destroyed rack)
   NUM_RACKS:             2,       // physical server racks in the office
   FACILITY_MAX_LEVEL:    3,       // devices/rooms can be upgraded to Lv 3
   PR_HYPE_DRAIN_PER_SEC: 2.0,
   PR_DURATION:           [15, 30],
-  PR_SPAWN_INTERVAL:     [30, 55],
-  QUIRK_INTERVAL:        [16, 30],
-  PEDDLER_INTERVAL:      [45, 80],   // shady peddlers swing by occasionally
-  BOARD_INTERVAL:        [58, 92],
+  PR_SPAWN_INTERVAL:     [58, 98],
+  QUIRK_INTERVAL:        [36, 64],
+  PEDDLER_INTERVAL:      [80, 135],  // shady peddlers swing by occasionally
+  BOARD_INTERVAL:        [88, 145],
   ACQUISITION_CHECK:     [95, 145],
-  CLONE_INTERVAL:        [80, 130],  // a rival eventually knocks off your best product
-  POACH_INTERVAL:        [70, 120],  // a rival tries to steal your best engineer
-  MEME_INTERVAL:         [58, 98],   // a product randomly becomes a meme
-  REGULATOR_INTERVAL:    [88, 150],  // a regulator comes knocking once you matter
+  MAJOR_EVENT_GAP:       [24, 42],   // minimum spacing between decision-modal events (no stacking)
+  CLONE_INTERVAL:        [115, 185], // a rival eventually knocks off your best product
+  POACH_INTERVAL:        [105, 165], // a rival tries to steal your best engineer
+  MEME_INTERVAL:         [90, 145],  // a product randomly becomes a meme
+  REGULATOR_INTERVAL:    [125, 200], // a regulator comes knocking once you matter
 
   PIVOT_CASH_COST:       8000,
   MARKETING_COST:        1800,
@@ -95,7 +101,7 @@ export const CONFIG = {
   MARKETING_HYPE_LIVE:   13,
 
   //  Market trends  a rotating "hot category" buffs matching products 
-  TREND_INTERVAL:        [40, 70],   // a new category trends every ~4070s once live
+  TREND_INTERVAL:        [60, 95],   // a new category trends every ~minute once live
   TREND_MRR_BONUS:       0.4,        // +40% MRR for products in the hot category
 
   //  Product aging  shipped products decay unless you ship updates 
@@ -113,11 +119,27 @@ export const CONFIG = {
   VERSION_PUSH_COST:     4500,
   FEATURE_DEV_MULT:      0.55,       // share of team power used on shipped-product roadmap
 
-  //  Morale / development control 
+  //  Morale / development control
   MORALE_START:          76,
   MORALE_RECOVER_PER_SEC:0.06,
   MORALE_BURNOUT_HIT:    8,
   CRUNCH_COOLDOWN:       18,
+
+  //  Employees as people: mood, stress, loyalty, growth
+  EMP_HAPPY_START:       72,    // 0..100  how good it feels to work here
+  EMP_STRESS_START:      18,    // 0..100  pressure / anxiety
+  EMP_LOYALTY_START:     55,    // 0..100  how likely they are to stay
+  EMP_HAPPY_DRIFT:       0.05,  // per-sec lerp toward the happiness target
+  EMP_STRESS_DRIFT:      0.07,  // per-sec lerp toward the stress target
+  EMP_LOYALTY_DRIFT:     0.02,  // per-sec lerp (loyalty is slow to move)
+  EMP_XP_PER_SEC:        0.55,  // experience gained while productively working
+  EMP_QUIT_HAPPY:        24,    // below this happiness + low loyalty => quit risk
+  EMP_QUIT_LOYALTY:      30,
+  EMP_QUIT_WATCH:        16,    // seconds of misery before they may walk
+  PIZZA_COST:            1200,  // a company-wide morale band-aid that works absurdly well
+  CD_PIZZA:              26,
+  PROMOTE_RAISE:         0.14,  // promoting bumps title + raises salary 14%
+  GOSSIP_INTERVAL:       [18, 34], // seconds between office gossip / relationship beats
 
   //  Competitor clone  a knockoff bleeds the cloned product's MRR 
   CLONE_MRR_MULT:        0.6,        // cloned product earns 60% until you respond
@@ -194,6 +216,61 @@ export const PERSONALITIES = {
 };
 
 const HIREABLE_PERSONALITIES = Object.keys(PERSONALITIES).filter(k => k !== 'cofounder');
+
+//  Traits
+// A light flavor layer on top of personality. Each employee carries 1-2 traits.
+// `good` drives the dot color in the UI; `eff` folds small, readable modifiers
+// into productivity / mood. The blurbs are pure comedy and show in the card.
+export const TRAITS = [
+  // positive
+  { id: 'genius',      label: 'Genius',        good: true,  eff: { dev: 1.18 },                 blurb: 'Solves in an afternoon what the team feared for a month.' },
+  { id: 'creative',    label: 'Creative',      good: true,  eff: { dev: 1.06, hypeAura: 0.12 }, blurb: 'Ideas at 3am, half of them dangerous, two of them brilliant.' },
+  { id: 'workaholic',  label: 'Workaholic',    good: true,  eff: { dev: 1.12, stress: 10 },     blurb: 'Replies to Slack from inside the shower. Glorious. Concerning.' },
+  { id: 'fastlearner', label: 'Fast Learner',  good: true,  eff: { xp: 1.6 },                   blurb: 'Levels up suspiciously fast. Already eyeing your job.' },
+  { id: 'leader',      label: 'Great Leader',  good: true,  eff: { teamHappy: 6 },               blurb: 'Everyone within Slack radius works a little happier.' },
+  { id: 'gymbro',      label: 'Gym Bro',       good: true,  eff: { energyMult: 0.8 },            blurb: 'Will tell you about the cold plunge. Genuinely never tired.' },
+  // negative
+  { id: 'doomscroll',  label: 'Doom Scroller', good: false, eff: { dev: 0.9 },                  blurb: 'Reads the entire internet daily. Reports back, unprompted.' },
+  { id: 'drama',       label: 'Drama Queen',   good: false, eff: { teamHappy: -5 },             blurb: 'Their personal life is a subscription the whole office pays for.' },
+  { id: 'aidoomer',    label: 'AI Doomer',     good: false, eff: { stress: 14 },                blurb: 'Has a countdown. Brings it up in standup. Every standup.' },
+  { id: 'coffee',      label: 'Coffee Addict', good: false, eff: { energyMult: 1.25 },          blurb: 'Six espressos deep. Vibrating gently. Output unmatched, briefly.' },
+  { id: 'late',        label: 'Always Late',   good: false, eff: { dev: 0.94 },                 blurb: '"Traffic." There is no traffic. They walk to work.' },
+  { id: 'leaker',      label: 'Leaks Everything', good: false, eff: { leak: 0.5 },              blurb: 'Cannot keep a secret to save the cap table. Or yours.' },
+  { id: 'crypto',      label: 'Crypto Bro',    good: false, eff: { hypeAura: 0.1 },             blurb: 'Has a coin. Wants you to have the coin. The coin is down 90%.' },
+  { id: 'oversharer',  label: 'Oversharer',    good: false, eff: { teamHappy: -3 },             blurb: 'You now know far too much about their roommate situation.' },
+];
+const TRAIT_BY_ID = Object.fromEntries(TRAITS.map(t => [t.id, t]));
+export function traitById(id) { return TRAIT_BY_ID[id]; }
+
+const BOND_TYPES = [
+  { type: 'friend',  good: true,  verb: 'is close with', icon: '🤝' },
+  { type: 'mentor',  good: true,  verb: 'mentors',        icon: '🎓' },
+  { type: 'crush',   good: true,  verb: 'has a crush on', icon: '💘' },
+  { type: 'rival',   good: false, verb: 'feuds with',     icon: '⚔' },
+];
+export function bondMeta(type) { return BOND_TYPES.find(b => b.type === type) || BOND_TYPES[0]; }
+
+function rollTraits() {
+  const ids = TRAITS.map(t => t.id);
+  const a = ids[Math.floor(Math.random() * ids.length)];
+  if (Math.random() < 0.42) {
+    let b = a, guard = 0;
+    while (b === a && guard++ < 6) b = ids[Math.floor(Math.random() * ids.length)];
+    return b === a ? [a] : [a, b];
+  }
+  return [a];
+}
+
+// New hire forms a relationship with a random existing teammate ~72% of the time.
+function formBonds(state, emp) {
+  const others = state.employees.filter(e => e.id !== emp.id);
+  if (!others.length || Math.random() > 0.72) return;
+  const other = others[Math.floor(Math.random() * others.length)];
+  const b = BOND_TYPES[Math.floor(Math.random() * BOND_TYPES.length)];
+  emp.bonds.push({ withId: other.id, type: b.type });
+  const recip = b.type === 'rival' ? 'rival' : b.type === 'crush' ? null : 'friend';
+  if (recip) { other.bonds = other.bonds || []; other.bonds.push({ withId: emp.id, type: recip }); }
+}
 
 export const CANDIDATE_NAMES = [
   'JAX', 'KIKI', 'PIPER', 'RIVER', 'NOVA', 'SAGE', 'KALE', 'CHAD III',
@@ -337,6 +414,14 @@ export const PEDDLER_DEALS = [
   { cash: 50000, debt: 80000, hype: 0,   text: 'A SPAC made of three shell companies wants in. The lawyers are also shells.' },
   { cash: 16000, debt: 0,     hype: 9,   text: 'Buy a verified checkmark farm. 80,000 accounts, all named some variant of "Brad".' },
   { cash: 28000, debt: 0,     hype: -14, text: 'License your users\' DMs to a "sentiment lab". Nobody reads the email about it.' },
+  { cash: 20000, debt: 0,     hype: -8,  text: 'A "reputation manager" offers $20k to bury one bad review under nine glowing fakes.' },
+  { cash: 33000, debt: 47000, hype: 0,   text: 'A crypto exchange (currently "under maintenance") fronts you $33k in a coin you cannot sell.' },
+  { cash: 14000, debt: 0,     hype: 10,  text: 'A man with a clipboard sells you a trending sound for $14k. It is, technically, a scream.' },
+  { cash: 26000, debt: 0,     hype: -12, text: 'License the office WiFi logs to an ad broker. $26k now, a class-action someday.' },
+  { cash: 8000,  debt: 0,     hype: 7,   text: 'Rent your logo to a mystery brand for one weekend. $8k. Do not ask what they sell.' },
+  { cash: 45000, debt: 70000, hype: 4,   text: 'A "family office" (one guy, his cousin) wires $45k against "the upside". The upside is undefined.' },
+  { cash: 17000, debt: 0,     hype: -9,  text: 'Sell early access to your unreleased feature to a competitor "for research". $17k.' },
+  { cash: 11000, debt: 0,     hype: 12,  text: 'Buy a viral apology-video template for $11k. You have not done anything yet. Yet.' },
 ];
 
 export const BOARD_DILEMMAS = [
@@ -401,6 +486,62 @@ export const BOARD_DILEMMAS = [
     options: [
       { label: 'Give Them Equity', desc: '+$15K from their fans, +12 Hype, future PR risk.', effect: { cash: 15000, hype: 12, pr: true } },
       { label: 'Politely Decline', desc: '+6 Hype for restraint. They subtweet you anyway.', effect: { hype: 6 } },
+    ],
+  },
+  {
+    id: 'opensource', title: 'Board Dilemma: Open Source It',
+    text: 'An engineer wants to open-source the core. The board hears "give away the company for GitHub stars".',
+    options: [
+      { label: 'Open Source It', desc: '-$4K, +14 Hype. Devs adore you; the moat evaporates.', effect: { cash: -4000, hype: 14 } },
+      { label: 'Keep It Closed', desc: '+$6K enterprise interest, -5 Hype. Hacker News is furious.', effect: { cash: 6000, hype: -5 } },
+    ],
+  },
+  {
+    id: 'superbowl', title: 'Board Dilemma: The Super Bowl Ad',
+    text: 'A media buyer offers a Super Bowl slot. It costs everything. It is seen by everyone, for four seconds.',
+    options: [
+      { label: 'Buy The Ad', desc: '-$30K, +22 Hype. Your servers should probably be warned.', effect: { cash: -30000, hype: 22 } },
+      { label: 'Stay Frugal', desc: '+$2K saved, +3 Hype. Growth via "word of mouth" (there are no words).', effect: { cash: 2000, hype: 3 } },
+    ],
+  },
+  {
+    id: 'unionize', title: 'Board Dilemma: The Team Wants A Union',
+    text: 'The team is organizing. The board uses the word "family" fourteen times in a single email.',
+    options: [
+      { label: 'Voluntarily Recognize', desc: '-$8K, +16 Hype, a much happier team.', effect: { cash: -8000, hype: 16 } },
+      { label: 'Hire A "Consultant"', desc: '+$5K efficiency, -18 Hype, PR risk.', effect: { cash: 5000, hype: -18, pr: true } },
+    ],
+  },
+  {
+    id: 'founder_book', title: 'Board Dilemma: Write The Book',
+    text: 'A publisher wants your founder wisdom. You have been a founder for nine months.',
+    options: [
+      { label: 'Write "Move Fast"', desc: '+$9K advance, +10 Hype, team rolls its eyes.', effect: { cash: 9000, hype: 10 } },
+      { label: 'Stay Humble', desc: '+7 Hype. You ship instead. The team is genuinely shocked.', effect: { hype: 7 } },
+    ],
+  },
+  {
+    id: 'token', title: 'Board Dilemma: Launch A Token',
+    text: 'Someone says the word "token" and the crypto guy on the board levitates slightly.',
+    options: [
+      { label: 'Launch $PANIC', desc: '+$26K, +12 Hype, significant PR risk.', effect: { cash: 26000, hype: 12, pr: true } },
+      { label: 'Absolutely Not', desc: '+9 Hype for restraint. He sulks for a week.', effect: { hype: 9 } },
+    ],
+  },
+  {
+    id: 'rto', title: 'Board Dilemma: Return To Office',
+    text: 'The board read one article about "collaboration" and now wants everyone back five days a week.',
+    options: [
+      { label: 'Mandate RTO', desc: '+0.04 launch buff, -12 Hype, morale dips.', effect: { launchBuff: 0.04, hype: -12, energyHit: 0.1 } },
+      { label: 'Stay Remote', desc: '-$3K stipends, +13 Hype. The team weeps with joy.', effect: { cash: -3000, hype: 13 } },
+    ],
+  },
+  {
+    id: 'pivot_ai', title: 'Board Dilemma: Pivot To AI (Again)',
+    text: 'The board wants to add "AI" to literally everything, including the company lunch.',
+    options: [
+      { label: 'Bolt On AI', desc: '+$14K, +15 Hype, the demo is held together with prayer.', effect: { cash: 14000, hype: 15, pr: true } },
+      { label: 'Stay Focused', desc: '+8 Hype, +0.03 launch buff. Radical.', effect: { hype: 8, launchBuff: 0.03 } },
     ],
   },
 ];
@@ -655,7 +796,7 @@ export class GameState {
     this.lastTweet    = '';
     this.peakValuation = 0;
 
-    this.cooldowns = { launch: 0, pitch: 0, caffeine: 0, pivot: 0, update: 0, crunch: 0, marketing: 0 };
+    this.cooldowns = { launch: 0, pitch: 0, caffeine: 0, pivot: 0, update: 0, crunch: 0, marketing: 0, pizza: 0 };
 
     this.fires       = [];  // { id, timer, maxTimer, fireObject }
     this.prDisasters = [];  // { id, title, desc, timer, maxTimer, severity }
@@ -783,7 +924,237 @@ export function getEmployeeDevPower(state, emp) {
   const computerMult = (desk && desk.hasComputer) ? 1 : CONFIG.NO_COMPUTER_PENALTY;
   // Caffeinated (high energy) works FASTER: ranges ~0.35 (drained)  ~1.35 (full).
   const energyMult = 0.35 + emp.energy;
-  return role.dev * (p.devMult ?? 1) * energyMult * computerMult;
+  // A happy, low-stress, well-traited employee ships more; a miserable one drags.
+  return role.dev * (p.devMult ?? 1) * energyMult * computerMult * getEmployeeProductivity(state, emp);
+}
+
+//  People layer: traits, mood, title, productivity
+const ROLE_TITLES = { eng: 'Engineer', design: 'Designer', growth: 'Growth Hacker' };
+const RANK_PREFIX = ['Junior ', '', 'Senior ', 'Lead ', 'Principal ', 'Head of '];
+
+/** Aggregate an employee's trait modifiers. dev/energyMult multiply; rest sum. */
+export function traitEff(emp) {
+  const out = { dev: 1, energyMult: 1, stress: 0, teamHappy: 0, hypeAura: 0, xp: 1, leak: 0 };
+  for (const id of (emp.traits || [])) {
+    const t = TRAIT_BY_ID[id]; if (!t || !t.eff) continue;
+    if (t.eff.dev) out.dev *= t.eff.dev;
+    if (t.eff.energyMult) out.energyMult *= t.eff.energyMult;
+    if (t.eff.xp) out.xp *= t.eff.xp;
+    if (t.eff.stress) out.stress += t.eff.stress;
+    if (t.eff.teamHappy) out.teamHappy += t.eff.teamHappy;
+    if (t.eff.hypeAura) out.hypeAura += t.eff.hypeAura;
+    if (t.eff.leak) out.leak = Math.max(out.leak, t.eff.leak);
+  }
+  return out;
+}
+
+/** A 0.6..1.4 multiplier on this employee's output, from mood + traits. */
+export function getEmployeeProductivity(state, emp) {
+  const happiness = emp.happiness ?? CONFIG.EMP_HAPPY_START;
+  const stress    = emp.stress ?? CONFIG.EMP_STRESS_START;
+  const mood = happiness - stress * 0.6;               // ~ -? .. 100
+  let m = 1 + (mood - 66) * 0.005;                     // mood 66 -> 1.0
+  m *= traitEff(emp).dev;
+  return clamp(m, 0.6, 1.4);
+}
+
+/** Derived mood bucket for the UI. */
+export function getEmployeeMood(emp) {
+  if (emp.burnedOut) return { id: 'burnt', label: 'Burned out', emoji: '\u{1F635}', tone: 'bad' };
+  const lowE = (emp.energy ?? 1) < CONFIG.WORK_ENERGY_MIN;
+  const s = (emp.happiness ?? 70) - (emp.stress ?? 20) * 0.6 - (lowE ? 20 : 0);
+  if (s >= 78) return { id: 'thriving', label: 'Thriving',  emoji: '\u{1F929}', tone: 'great' };
+  if (s >= 60) return { id: 'happy',    label: 'Happy',     emoji: '\u{1F642}', tone: 'good' };
+  if (s >= 42) return { id: 'fine',     label: 'Fine',      emoji: '\u{1F610}', tone: 'mid' };
+  if (s >= 24) return { id: 'stressed', label: 'Stressed',  emoji: '\u{1F61F}', tone: 'warn' };
+  return { id: 'miserable', label: 'Miserable', emoji: '\u{1F62B}', tone: 'bad' };
+}
+
+/** Rank index from accumulated experience. */
+export function rankFromXp(xp) {
+  const t = [0, 45, 120, 250, 460, 760];
+  let r = 0; for (let i = 0; i < t.length; i++) if (xp >= t[i]) r = i;
+  return r;
+}
+
+/** "Senior Engineer", "Head of Growth Hacker", etc. */
+export function getEmployeeTitle(emp) {
+  const role = ROLE_TITLES[emp.role] || 'Operator';
+  const r = clamp(emp.rank ?? 0, 0, RANK_PREFIX.length - 1);
+  return (RANK_PREFIX[r] + role).trim();
+}
+
+/** Team-wide mood summary for the HUD header. */
+export function getTeamMoodSummary(state) {
+  const emps = state.employees || [];
+  if (!emps.length) return { avgHappy: 0, avgStress: 0, label: 'No team yet', emoji: '\u{1F4C4}', burned: 0, count: 0 };
+  let h = 0, s = 0, burned = 0;
+  for (const e of emps) { h += e.happiness ?? 70; s += e.stress ?? 20; if (e.burnedOut) burned++; }
+  const avgHappy = Math.round(h / emps.length), avgStress = Math.round(s / emps.length);
+  const score = avgHappy - avgStress * 0.6 - burned * 8;
+  const label = score >= 70 ? 'Buzzing' : score >= 52 ? 'Good vibes' : score >= 36 ? 'Tense' : 'On the edge';
+  const emoji = score >= 70 ? '\u{1F525}' : score >= 52 ? '\u{1F642}' : score >= 36 ? '\u{1F605}' : '\u{1F6A8}';
+  return { avgHappy, avgStress, label, emoji, burned, count: emps.length };
+}
+
+/**
+ * The whole company reacts to a decision or event. Small, clamped, readable
+ * deltas to happiness/stress/loyalty, plus a transient kick so the change
+ * "pops" before it settles back toward the ambient target.
+ */
+export function teamReact(state, kind, opts = {}) {
+  const all = state.employees || [];
+  const bump = (e, dH, dS, dL) => {
+    if (!e) return;
+    e.happiness = clamp((e.happiness ?? 70) + dH, 0, 100);
+    e.stress    = clamp((e.stress ?? 20) + dS, 0, 100);
+    e.loyalty   = clamp((e.loyalty ?? 55) + dL, 0, 100);
+    if (dH > 0) e.moodBoost   = Math.max(e.moodBoost || 0, dH * 0.5);
+    if (dS > 0) e.stressSpike = Math.max(e.stressSpike || 0, dS * 0.5);
+  };
+  switch (kind) {
+    case 'launch_hit':     for (const e of all) bump(e, 13, -8, 3); break;
+    case 'launch_flop':    for (const e of all) bump(e, -9, 10, -2); break;
+    case 'viral':          for (const e of all) bump(e, 14, -6, 2); break;
+    case 'funding':        for (const e of all) bump(e, 9, -3, 4); break;
+    case 'office_upgrade': for (const e of all) bump(e, 10, -4, 4); break;
+    case 'pizza':          for (const e of all) bump(e, 12, -10, 1); break;
+    case 'caffeine':       for (const e of all) bump(e, 3, -4, 0); break;
+    case 'crunch':         for (const e of all) if (!e.burnedOut) bump(e, -4, 12, 0); break;
+    case 'fire':           for (const e of all) bump(e, -3, 12, 0); break;
+    case 'pr':             for (const e of all) bump(e, -6, 9, -1); break;
+    case 'layoff':         for (const e of all) bump(e, -10, 16, -14); break;
+    case 'promote':        bump(opts.who, 14, -6, 18); break;
+    case 'raise':          bump(opts.who, 8, -2, 12); break;
+    case 'poach_kept':     bump(opts.who, 8, 0, 15); break;
+    default: break;
+  }
+}
+
+const GOSSIP_BONDS = {
+  friend: [
+    "{A} and {B} have started finishing each other's standups. it's sweet. it's also slowing standup.",
+    "{A} defended {B} in a code review so hard that legal got cc'd.",
+    "{A} and {B} are doing a two-person book club. the book is the company wiki.",
+  ],
+  rival: [
+    "{A} and {B} are in a passive-aggressive PR-comment war again. the PR was a typo fix.",
+    "{A} scheduled a meeting titled 'alignment' that is just to annoy {B}.",
+    "{A} and {B} both claim they invented the feature. neither remembers what it does.",
+  ],
+  mentor: [
+    "{A} is mentoring {B}. productivity up, billable lunches up more.",
+    "{B} now copies {A}'s exact Slack punctuation. it has gone too far.",
+  ],
+  crush: [
+    "pretty sure {A} has a crush on {B}. the whole office knows. {B} does not.",
+    "{A} has reorganized their calendar entirely around {B}'s coffee runs.",
+  ],
+};
+const GOSSIP_SOLO = {
+  bad:  ['{A} updated their LinkedIn headline to "Open to opportunities 👀".', '{A} took a "quick walk" ninety minutes ago.', '{A} has started replying to messages with a single period.'],
+  warn: ['{A} sighed so loudly in standup that two other people apologized.', '{A} is rage-refactoring something that worked perfectly fine.'],
+  mid:  ['{A} is quietly building something in a branch named "do-not-merge".', '{A} brought a plant to their desk. a statement of permanence, or hope.'],
+  good: ['{A} brought in donuts unprompted. morale +5, blood sugar +40.', '{A} fixed the office speaker and is now insufferable about it.'],
+  great:['{A} is so happy they volunteered to fix the printer. nobody asked. nobody dared stop them.'],
+};
+function makeGossip(state) {
+  const emps = state.employees || [];
+  if (!emps.length) return null;
+  const withBond = emps.filter(x => (x.bonds || []).length);
+  if (withBond.length && Math.random() < 0.55) {
+    const a = pick(withBond);
+    const b = pick(a.bonds);
+    const other = emps.find(x => x.id === b.withId);
+    if (other) {
+      const bank = GOSSIP_BONDS[b.type] || GOSSIP_BONDS.friend;
+      return { text: pick(bank).replace(/\{A\}/g, a.name).replace(/\{B\}/g, other.name), who: a.name, type: b.type };
+    }
+  }
+  const e = pick(emps);
+  const tone = getEmployeeMood(e).tone;
+  const bank = GOSSIP_SOLO[tone] || GOSSIP_SOLO.mid;
+  return { text: pick(bank).replace(/\{A\}/g, e.name), who: e.name, type: 'mood' };
+}
+
+/**
+ * Per-tick people simulation: drift mood/stress/loyalty toward ambient targets
+ * shaped by office, facilities, traits, bonds and workload; grow experience;
+ * surface quits and office gossip. Called from updateGame.
+ */
+function updateTeamMood(state, dt, mods, events) {
+  const emps = state.employees;
+  if (!emps || !emps.length) return;
+
+  const officeBonus  = (state.officeTier || 0) * 4;
+  const facilityCalm = mods.energyDecay < 1 ? 8 : 0;          // espresso / break room
+  const facilityHappy = facilityCalm * 0.6 + (mods.hypeAura > 0 ? 2 : 0);
+  const liveStress   = state.live ? 6 : 0;
+  const fireStress   = (state.fires ? state.fires.length : 0) * 14;
+  const prStress     = (state.prDisasters ? state.prDisasters.length : 0) * 8;
+  const runway       = getRunwaySeconds(state);
+  const runwayStress = (isFinite(runway) && runway < 40) ? 16 : 0;
+  const crunchStress = getActiveProducts(state).some(ap => ap.devMode === 'fast') ? 8 : 0;
+
+  let auraHappy = 0;
+  for (const o of emps) if (!o.burnedOut) auraHappy += traitEff(o).teamHappy;
+
+  const quitters = [];
+  for (const e of emps) {
+    if (e.burnedOut) {
+      e.stress    = clamp((e.stress ?? 20) + 20 * dt, 0, 100);
+      e.happiness = clamp((e.happiness ?? 70) - 8 * dt, 0, 100);
+      continue;
+    }
+    const te = traitEff(e);
+    let bondHappy = 0;
+    for (const b of (e.bonds || [])) {
+      const other = emps.find(x => x.id === b.withId);
+      if (!other) continue;
+      bondHappy += bondMeta(b.type).good ? (other.burnedOut ? 0 : 4) : -4;
+    }
+    const lowE = e.energy < CONFIG.WORK_ENERGY_MIN;
+    const happyTarget  = 58 + officeBonus + facilityHappy + (auraHappy - te.teamHappy) + bondHappy
+                       + te.teamHappy + (lowE ? -16 : 0) - ((e.stress ?? 20) - 20) * 0.18;
+    const stressTarget = clamp(14 + liveStress + fireStress + prStress + runwayStress + crunchStress
+                       + te.stress - facilityCalm, 0, 100);
+
+    e.happiness = clamp(e.happiness + (happyTarget - e.happiness) * Math.min(1, dt * CONFIG.EMP_HAPPY_DRIFT) + (e.moodBoost || 0) * dt, 0, 100);
+    e.stress    = clamp(e.stress + (stressTarget - e.stress) * Math.min(1, dt * CONFIG.EMP_STRESS_DRIFT) + (e.stressSpike || 0) * dt, 0, 100);
+    e.moodBoost   = (e.moodBoost || 0) * Math.max(0, 1 - dt * 0.5);
+    e.stressSpike = (e.stressSpike || 0) * Math.max(0, 1 - dt * 0.5);
+
+    e.tenure = (e.tenure || 0) + dt;
+    const loyalTarget = clamp(34 + ((e.happiness ?? 70) - 50) * 0.5 + Math.min(20, e.tenure * 0.05), 0, 100);
+    e.loyalty = clamp((e.loyalty ?? 55) + (loyalTarget - e.loyalty) * Math.min(1, dt * CONFIG.EMP_LOYALTY_DRIFT), 0, 100);
+
+    if (getEmployeeDevPower(state, e) > 0) {
+      e.experience = (e.experience || 0) + CONFIG.EMP_XP_PER_SEC * te.xp * dt;
+      const nr = rankFromXp(e.experience);
+      if (nr > (e.rank ?? 0)) { e.rank = nr; events.push({ type: 'emp_levelup', employee: e, title: getEmployeeTitle(e) }); }
+    }
+
+    if (state.live && emps.length > 1 && e.happiness < CONFIG.EMP_QUIT_HAPPY && e.loyalty < CONFIG.EMP_QUIT_LOYALTY) {
+      e.quitWatch = (e.quitWatch || 0) + dt;
+      if (e.quitWatch > CONFIG.EMP_QUIT_WATCH && Math.random() < dt * 0.06) quitters.push(e);
+    } else {
+      e.quitWatch = Math.max(0, (e.quitWatch || 0) - dt * 0.5);
+    }
+  }
+
+  if (quitters.length) {
+    const q = quitters[0];
+    removeEmployee(state, q);
+    events.push({ type: 'employee_quit', employee: q });
+    teamReact(state, 'layoff');
+  }
+
+  state._nextGossipTime = (state._nextGossipTime ?? randRange(CONFIG.GOSSIP_INTERVAL)) - dt;
+  if (state._nextGossipTime <= 0) {
+    state._nextGossipTime = randRange(CONFIG.GOSSIP_INTERVAL);
+    const g = makeGossip(state);
+    if (g) events.push({ type: 'team_gossip', gossip: g });
+  }
 }
 
 export function getFounderDesk(state) {
@@ -896,7 +1267,7 @@ export function productEffectiveMRR(state, p) {
   m *= 1 + ((p.featureMrrBonus || 0) / Math.max(1, p.idea.mrr));
   m *= clamp(1 - (p.techDebt || 0) * CONFIG.TECH_DEBT_MRR_PENALTY, 0.45, 1.08);
   m *= clamp(1 - (p.bugs || 0) * CONFIG.BUG_MRR_PENALTY, 0.45, 1.03);
-  m *= clamp(0.82 + (p.quality || 70) / 380, 0.75, 1.14);
+  m *= clamp(1 + ((p.quality || 70) - 70) / 150, 0.6, 1.35);   // quality genuinely drives sales
   const trend = state.marketTrend;
   if (trend && productCategory(p.idea) === trend.id) m *= 1 + trend.mrrBonus;
   if (state.competitorClone && state.competitorClone.product === p) m *= state.competitorClone.mrrMult;
@@ -973,7 +1344,7 @@ export function generateCandidates(state, count = 3) {
 
     const role   = pick(Object.keys(ROLES));
     const salary = Math.round(randRange(ROLES[role].salaryRange) / 5) * 5;
-    candidates.push({ name, role, personality, salary });
+    candidates.push({ name, role, personality, salary, traits: rollTraits() });
   }
   return candidates;
 }
@@ -1181,7 +1552,10 @@ export function updateGame(state, dt) {
     if (emp.burnedOut) burnoutCount++;
   }
 
-  //  Hype 
+  //  People: mood, stress, loyalty, growth, quits and office gossip
+  updateTeamMood(state, dt, mods, events);
+
+  //  Hype
   // In stealth (pre-launch) hype is dormant  it doesn't bleed away while
   // nobody knows you exist. Going live turns on decay, drains, and the grind
   // of keeping the world's attention. Passive auras still apply either way.
@@ -1333,15 +1707,19 @@ export function updateGame(state, dt) {
       state._nextCloneTime -= dt;
       if (state._nextCloneTime <= 0) {
         state._nextCloneTime = randRange(CONFIG.CLONE_INTERVAL);
-        if (state.shippedProducts.length >= 2 && !state.paused) {
+        if (state.shippedProducts.length >= 2 && !state.paused && state._majorGap <= 0) {
           const clone = buildCompetitorClone(state);
           if (clone) {
             state.competitorClone = clone;
             events.push({ type: 'competitor_clone', clone });
+            state._majorGap = randRange(CONFIG.MAJOR_EVENT_GAP);
           }
         }
       }
     }
+
+    // Pace decision-modal events so they never stack on top of each other.
+    state._majorGap = (state._majorGap ?? 0) - dt;
 
     //  Event Spawning: Fires 
     state._nextFireTime -= dt;
@@ -1369,21 +1747,22 @@ export function updateGame(state, dt) {
     state._nextPeddlerTime -= dt;
     if (state._nextPeddlerTime <= 0) {
       state._nextPeddlerTime = randRange(CONFIG.PEDDLER_INTERVAL);
-      if (!state.paused) events.push({ type: 'peddler', deal: pick(PEDDLER_DEALS) });
+      if (!state.paused && state._majorGap <= 0) { events.push({ type: 'peddler', deal: pick(PEDDLER_DEALS) }); state._majorGap = randRange(CONFIG.MAJOR_EVENT_GAP); }
     }
 
     state._nextBoardTime -= dt;
     if (state._nextBoardTime <= 0) {
       state._nextBoardTime = randRange(CONFIG.BOARD_INTERVAL);
       const pool = availableBoardDilemmas(state);
-      if (!state.paused && pool.length) events.push({ type: 'board_dilemma', dilemma: pick(pool) });
+      if (!state.paused && pool.length && state._majorGap <= 0) { events.push({ type: 'board_dilemma', dilemma: pick(pool) }); state._majorGap = randRange(CONFIG.MAJOR_EVENT_GAP); }
     }
 
     state._nextAcqTime -= dt;
     if (!state._acquisitionOffered && state._nextAcqTime <= 0) {
-      if (state.shippedProducts.length >= 3 && getValuation(state) >= 180000) {
+      if (state.shippedProducts.length >= 3 && getValuation(state) >= 180000 && state._majorGap <= 0) {
         state._acquisitionOffered = true;
         events.push({ type: 'acquisition_offer', offer: buildAcquisitionOffer(state) });
+        state._majorGap = randRange(CONFIG.MAJOR_EVENT_GAP);
       } else {
         state._nextAcqTime = randRange(CONFIG.ACQUISITION_CHECK);
       }
@@ -1406,9 +1785,9 @@ export function updateGame(state, dt) {
     state._nextPoachTime -= dt;
     if (state._nextPoachTime <= 0) {
       state._nextPoachTime = randRange(CONFIG.POACH_INTERVAL);
-      if (!state.paused && state.employees.filter(e => !e.burnedOut).length >= 1) {
+      if (!state.paused && state._majorGap <= 0 && state.employees.filter(e => !e.burnedOut).length >= 1) {
         const offer = buildPoachOffer(state);
-        if (offer) events.push({ type: 'talent_poach', offer });
+        if (offer) { events.push({ type: 'talent_poach', offer }); state._majorGap = randRange(CONFIG.MAJOR_EVENT_GAP); }
       }
     }
 
@@ -1416,9 +1795,9 @@ export function updateGame(state, dt) {
     state._nextMemeTime -= dt;
     if (state._nextMemeTime <= 0) {
       state._nextMemeTime = randRange(CONFIG.MEME_INTERVAL);
-      if (!state.paused && state.shippedProducts.length) {
+      if (!state.paused && state._majorGap <= 0 && state.shippedProducts.length) {
         const moment = buildMemeMoment(state);
-        if (moment) events.push({ type: 'meme_moment', moment });
+        if (moment) { events.push({ type: 'meme_moment', moment }); state._majorGap = randRange(CONFIG.MAJOR_EVENT_GAP); }
       }
     }
 
@@ -1426,8 +1805,29 @@ export function updateGame(state, dt) {
     state._nextRegulatorTime -= dt;
     if (state._nextRegulatorTime <= 0) {
       state._nextRegulatorTime = randRange(CONFIG.REGULATOR_INTERVAL);
-      if (!state.paused && state.shippedProducts.length >= 2 && getValuation(state) >= 120000) {
+      if (!state.paused && state._majorGap <= 0 && state.shippedProducts.length >= 2 && getValuation(state) >= 120000) {
         events.push({ type: 'regulator', probe: buildRegulatorProbe(state) });
+        state._majorGap = randRange(CONFIG.MAJOR_EVENT_GAP);
+      }
+    }
+  }
+
+  //  Out-of-money lifeline: when you are nearly broke and bleeding, the world
+  //  offers a way out  a bank if you have traction, a shady peddler if you do not.
+  state._lifelineCd = (state._lifelineCd ?? randRange(CONFIG.LIFELINE_COOLDOWN)) - dt;
+  {
+    const net = getNetCashFlow(state);
+    const runway = getRunwaySeconds(state);
+    const desperate = state.cash < CONFIG.LIFELINE_CASH && net < 0 &&
+      (state.cash < 0 || (isFinite(runway) && runway < CONFIG.LIFELINE_RUNWAY));
+    if (desperate && state._lifelineCd <= 0 && !state.paused && !state.gameOver) {
+      state._lifelineCd = randRange(CONFIG.LIFELINE_COOLDOWN);
+      const hasTraction = state.shippedProducts.length >= 1 && getValuation(state) > 60000;
+      if (hasTraction) {
+        const loan = LOANS[Math.min(LOANS.length - 1, state.shippedProducts.length >= 3 ? 1 : 0)];
+        events.push({ type: 'lifeline', kind: 'bank', loan });
+      } else {
+        events.push({ type: 'lifeline', kind: 'peddler', deal: pick(PEDDLER_DEALS) });
       }
     }
   }
@@ -1439,6 +1839,17 @@ export function updateGame(state, dt) {
   if (state.cash <= CONFIG.DEBT_LIMIT) {
     state.gameOver = true;
     events.push({ type: 'game_over' });
+  }
+
+  // Product-era progression: ship + raise to unlock bigger frontiers.
+  if (state._eraSurfaced == null) {
+    state._eraSurfaced = getUnlockedEra(state);
+  } else {
+    const _curEra = getUnlockedEra(state);
+    if (_curEra > state._eraSurfaced) {
+      for (let _e = state._eraSurfaced + 1; _e <= _curEra; _e++) events.push({ type: 'era_unlock', era: PRODUCT_ERAS[_e] });
+      state._eraSurfaced = _curEra;
+    }
   }
 
   return events;
@@ -1525,9 +1936,22 @@ export function actionHireCandidate(state, candidate) {
     atDesk: true,            // working at their desk (set false while on a break)
     deskId: desk.id,
     colorIdx: state.employees.length % 6,
+    // people layer
+    traits: (candidate.traits && candidate.traits.length) ? candidate.traits.slice() : rollTraits(),
+    happiness: CONFIG.EMP_HAPPY_START + ri(-6, 8),
+    stress:    CONFIG.EMP_STRESS_START + ri(-6, 8),
+    loyalty:   CONFIG.EMP_LOYALTY_START + ri(-8, 8),
+    experience: 0,
+    rank: 0,
+    tenure: 0,
+    bonds: [],
+    moodBoost: 0,    // transient happiness kick from recent events (decays)
+    stressSpike: 0,  // transient stress kick (decays)
+    quitWatch: 0,    // seconds spent miserable + disloyal
   };
   desk.employeeId = employee.id;
   state.employees.push(employee);
+  formBonds(state, employee);
   state.stats.hires++;
 
   return { success: true, employee, desk, cost: CONFIG.HIRE_SIGNING_BONUS };
@@ -1568,7 +1992,26 @@ export function actionStartProduct(state, idea) {
   state.cash -= investment;
   idea.ambition = idea.ambition ?? 1;
   idea.investment = investment;
-  state.activeProducts.push({ idea, progress: 0, devMode: 'balanced', quality: 68, bugs: 0 });
+  const alloc = idea.devAllocation || {};
+  const quality = clamp(
+    50
+      + (alloc.engineering || 0) * 4
+      + (alloc.infrastructure || 0) * 2.5
+      + (alloc.compliance || 0) * 2
+      - (alloc.magic || 0) * 1.2,
+    30,
+    100
+  );
+  const bugs = clamp(
+    12
+      + (alloc.magic || 0) * 2.2
+      - (alloc.engineering || 0) * 1.8
+      - (alloc.infrastructure || 0) * 1.2
+      - (alloc.compliance || 0),
+    0,
+    50
+  );
+  state.activeProducts.push({ idea, progress: 0, devMode: 'balanced', quality, bugs });
   return { success: true, idea, investment, cost: investment };
 }
 
@@ -1587,10 +2030,10 @@ export function actionResolveCrunchSprint(state, score = 0.5, index = 0) {
   if (!product) return { success: false, reason: 'Start developing a product first.' };
   if (state.cooldowns.crunch > 0) return { success: false, reason: `Crunch cooldown: ${state.cooldowns.crunch.toFixed(1)}s` };
   const s = clamp(score, 0, 1);
-  const progress = Math.round(8 + s * 26);
-  const bugDelta = Math.round((1 - s) * 9);
-  const qualityDelta = Math.round((s - 0.45) * 12);
-  const moraleHit = Math.round(4 + (1 - s) * 9);
+  const progress = Math.round(8 + s * 30);
+  const bugDelta = Math.round((1 - s) * 11 - s * 4);   // a clean sprint actually removes bugs
+  const qualityDelta = Math.round((s - 0.4) * 24);     // the sprint genuinely moves quality
+  const moraleHit = Math.round(3 + (1 - s) * 9);
   product.progress += progress;
   product.bugs = clamp((product.bugs || 0) + bugDelta, 0, 60);
   product.quality = clamp((product.quality || 68) + qualityDelta, 20, 100);
@@ -1599,6 +2042,7 @@ export function actionResolveCrunchSprint(state, score = 0.5, index = 0) {
     if (!emp.burnedOut) emp.energy = Math.max(0.02, emp.energy - (0.08 + (1 - s) * 0.1));
   }
   state.cooldowns.crunch = CONFIG.CD_CRUNCH;
+  teamReact(state, 'crunch');
   return { success: true, score: s, progress, bugDelta, qualityDelta, moraleHit, product };
 }
 
@@ -1617,6 +2061,9 @@ export function computeLaunchPlanEffects(plan = {}) {
     successBonus: reliability * CONFIG.LAUNCH_RELIABILITY_BONUS + legal * CONFIG.LAUNCH_LEGAL_BONUS,
     hypeBonus: marketing * CONFIG.LAUNCH_MARKETING_HYPE,
     flopMrrBonus: legal * 0.04,
+    userBaseBonus: marketing * 0.07,     // marketing buys launch-day users
+    bugReduction: reliability * 1.6,     // reliability ships cleaner
+    scamReduction: legal * 3,            // legal lowers scandal exposure
   };
 }
 
@@ -1651,8 +2098,8 @@ export function actionLaunchProduct(state, index, launchPlan = {}) {
     computeSuccessChance(state, ambition)
       + planEffects.successBonus
       + (state.launchBuff || 0)
-      + ((product.quality ?? 68) - 68) / 260
-      - (product.bugs || 0) / 180,
+      + ((product.quality ?? 68) - 66) / 130
+      - (product.bugs || 0) / 150,
     CONFIG.SUCCESS_MIN,
     CONFIG.SUCCESS_MAX
   );
@@ -1668,14 +2115,22 @@ export function actionLaunchProduct(state, index, launchPlan = {}) {
   product.shelfIdx = state.shippedProducts.length;
   product.freshness = 1; // brand new  earns full MRR until it ages
   product.quality = product.quality ?? 68;
-  product.bugs = product.bugs ?? 0;
+  product.bugs = clamp((product.bugs ?? 0) - planEffects.bugReduction, 0, 60);
+  if (product.idea) product.idea.scam = Math.max(0, (product.idea.scam || 0) - planEffects.scamReduction);
+  // Critics: a continuous review score from quality, bugs, marketing and whether it landed.
+  const _q = product.quality;
+  const _devMkt = (product.idea && product.idea.devAllocation && product.idea.devAllocation.marketing) || 0;
+  const reviewScore = clamp(0.28 + (_q - 50) / 120 - product.bugs / 110 + planEffects.marketing * 0.03 + (success ? 0.18 : -0.22), 0, 1);
+  product.reviewScore = reviewScore;
   product.techDebt = Math.max(0, 12 - Math.round(product.quality / 12) + product.bugs);
   product.price = 1;
-  product.userBase = 1;
+  // Launch-day audience: great reviews + marketing => more users => more sales from day one.
+  product.userBase = clamp(0.62 + reviewScore * 0.95 + planEffects.userBaseBonus + _devMkt * 0.04, 0.5, 2.5);
   product.featureMrrBonus = 0;
   product.featureBurn = 0;
   product.featureQueue = [];
   product.outageTimer = 0;
+  product.brand = productBrand(product.idea && product.idea.name, product.idea && product.idea.industry);
   state.shippedProducts.push(product);
   state.stats.productsShipped++;
 
@@ -1686,7 +2141,10 @@ export function actionLaunchProduct(state, index, launchPlan = {}) {
   );
   state.hype = clamp(state.hype + burst, 0, CONFIG.HYPE_MAX);
 
-  return { success: true, product, hypeGained: burst, reviewGood: success, flopped: !success, firstLaunch, launchPlan: planEffects, chance };
+  // The team feels every launch: a hit lifts the whole company, a flop stings.
+  teamReact(state, success ? 'launch_hit' : 'launch_flop');
+
+  return { success: true, product, hypeGained: burst, reviewGood: success, reviewScore, flopped: !success, firstLaunch, launchPlan: planEffects, chance };
 }
 
 /**
@@ -1694,7 +2152,7 @@ export function actionLaunchProduct(state, index, launchPlan = {}) {
  * Closing a round requires meeting its product/hype requirements AND a
  * good buzzword quality score. Otherwise the VCs pass and toss bridge money.
  */
-export function actionDeliverPitch(state, selectedBuzzwords) {
+export function actionDeliverPitch(state, selectedBuzzwords, deliveryScore = 1) {
   if (state.cooldowns.pitch > 0) {
     return { success: false, reason: `Cooldown: ${state.cooldowns.pitch.toFixed(1)}s` };
   }
@@ -1707,6 +2165,13 @@ export function actionDeliverPitch(state, selectedBuzzwords) {
   const claims = Array.isArray(selectedBuzzwords) ? [] : (selectedBuzzwords?.claims || []);
   const est = estimatePitch(state, { words, claims });
   const lieRisk = claims.reduce((s, c) => s + (c.risk || 0), 0);
+  // Delivery minigame ("Read the Room") nudges the effective pitch quality.
+  const dMult = 0.85 + Math.max(0, Math.min(1, deliveryScore)) * 0.35;   // 0.85 .. 1.20
+  const effQuality = est.quality * dMult;
+  const willClose = est.meets && effQuality >= 1.05;
+  const projected = willClose
+    ? Math.round(est.round.amount * Math.min(1.5, 0.7 + effQuality * 0.3))
+    : Math.round(est.round.amount * 0.06 * effQuality);
   state.cooldowns.pitch = CONFIG.CD_PITCH;
   state.stats.pitches++;
 
@@ -1716,9 +2181,9 @@ export function actionDeliverPitch(state, selectedBuzzwords) {
     return { success: true, closed: false, raised: 0, round: est.round, caught: true, reason: 'The VC caught the bluff. Meeting ended instantly.' };
   }
 
-  if (est.willClose) {
-    state.cash        += est.projected;
-    state.totalRaised += est.projected;
+  if (willClose) {
+    state.cash        += projected;
+    state.totalRaised += projected;
     state.hype         = clamp(state.hype + 18, 0, CONFIG.HYPE_MAX);
     const closedRound  = est.round;
     state.roundIndex++;
@@ -1726,12 +2191,12 @@ export function actionDeliverPitch(state, selectedBuzzwords) {
     const won = state.roundIndex >= FUNDING_ROUNDS.length;
     if (won) state.won = true;
 
-    return { success: true, closed: true, raised: est.projected, round: closedRound, won };
+    return { success: true, closed: true, raised: projected, round: closedRound, won };
   }
 
   // VCs pass  small bridge check out of pity (or boredom)
-  state.cash        += est.projected;
-  state.totalRaised += est.projected;
+  state.cash        += projected;
+  state.totalRaised += projected;
   state.hype         = clamp(state.hype + 4, 0, CONFIG.HYPE_MAX);
 
   let reason;
@@ -1745,7 +2210,7 @@ export function actionDeliverPitch(state, selectedBuzzwords) {
     reason = 'Weak buzzword game. The partners were unmoved.';
   }
 
-  return { success: true, closed: false, raised: est.projected, round: est.round, reason };
+  return { success: true, closed: false, raised: projected, round: est.round, reason };
 }
 
 export function actionSetProductPrice(state, index, price) {
@@ -1807,7 +2272,7 @@ export function actionVersionPushProduct(state, index) {
   return { success: true, product: p, cost, bigWin, outage: p.outageTimer, hype: -10 };
 }
 
-export function actionResolvePRResponse(state, prId, choice) {
+export function actionResolvePRResponse(state, prId, choice, score = null) {
   const pr = state.prDisasters.find(x => x.id === prId);
   if (!pr) return { success: false, reason: 'That PR disaster already faded.' };
   const table = {
@@ -1818,11 +2283,15 @@ export function actionResolvePRResponse(state, prId, choice) {
   const pick = table[choice] || table.apology;
   if (pick.cost && state.cash < pick.cost) return { success: false, reason: `Need ${fmtMoney(pick.cost)} for legal damage control.` };
   if (pick.cost) state.cash -= pick.cost;
-  pr.severity = Math.max(0.15, pr.severity + pick.severity);
-  pr.timer = Math.max(1, pr.timer + pick.timer);
-  state.hype = clamp(state.hype + pick.hype, 0, CONFIG.HYPE_MAX);
+  // A minigame score (0..1) scales how well the response lands; null = legacy flat effect.
+  const eff = score == null ? 1 : 0.55 + 0.9 * score;            // botched 0.55x .. nailed 1.45x
+  const sevDelta = pick.severity < 0 ? pick.severity * eff : pick.severity;
+  const hypeDelta = Math.round(pick.hype * (score == null ? 1 : 0.6 + 0.8 * score));
+  pr.severity = Math.max(0.15, pr.severity + sevDelta);
+  pr.timer = Math.max(1, pr.timer + pick.timer * (pick.timer < 0 ? eff : 1));
+  state.hype = clamp(state.hype + hypeDelta, 0, CONFIG.HYPE_MAX);
   state.morale = clamp((state.morale ?? CONFIG.MORALE_START) + pick.morale, 0, 100);
-  return { success: true, pr, response: pick, cost: pick.cost || 0, hypeDelta: pick.hype };
+  return { success: true, pr, response: pick, cost: pick.cost || 0, hypeDelta };
 }
 
 /**
@@ -1854,6 +2323,7 @@ export function actionCaffeinate(state) {
   state.cash -= CONFIG.CAFFEINE_COST;
   state.cooldowns.caffeine = CONFIG.CD_CAFFEINE;
   state.stats.caffeinations++;
+  teamReact(state, 'caffeine');
 
   return { success: true, restoredCount: restored, cost: CONFIG.CAFFEINE_COST };
 }
@@ -1894,7 +2364,7 @@ export function actionTakeLoan(state, id) {
   return { success: true, loan };
 }
 
-export function actionMarketingPost(state) {
+export function actionMarketingPost(state, score = 1) {
   if (state.cooldowns.marketing > 0) {
     return { success: false, reason: `Marketing cooldown: ${state.cooldowns.marketing.toFixed(1)}s` };
   }
@@ -1907,8 +2377,12 @@ export function actionMarketingPost(state) {
   const activeCount = getActiveProducts(state).length + state.readyProducts.length;
   const base = state.live ? CONFIG.MARKETING_HYPE_LIVE : CONFIG.MARKETING_HYPE_BASE;
   const tractionBonus = Math.min(8, productCount * 2 + activeCount);
-  const randomness = Math.round(randRange([-2, 5]));
-  const hypeDelta = Math.max(3, base + tractionBonus + randomness);
+  // Skill-scaled by the Go Viral minigame: a great push ~1.65x, a weak one ~0.5x.
+  // (Replaces the old random swing so hype is steadier and earned.)
+  const sc = Math.max(0, Math.min(1, score));
+  const skillMult = 0.5 + sc * 1.15;
+  const viralBonus = sc >= 0.85 ? 6 : 0;
+  const hypeDelta = Math.max(3, Math.round((base + tractionBonus) * skillMult + viralBonus));
 
   state.cash -= CONFIG.MARKETING_COST;
   state.hype = clamp(state.hype + hypeDelta, 0, CONFIG.HYPE_MAX);
@@ -2263,6 +2737,7 @@ export function actionExpandOffice(state) {
   state.cash -= next.cost;
   state.officeTier++;
   state.deskSlots = next.slots;
+  teamReact(state, 'office_upgrade');
   return { success: true, tier: next, cost: next.cost };
 }
 
@@ -2351,4 +2826,190 @@ export function actionExtinguishFire(state, fireId, quality = 1) {
   state.hype = clamp(state.hype + bonus, 0, CONFIG.HYPE_MAX);
 
   return { success: true, hypeBonus: bonus, clean, quality: q };
+}
+
+//  People actions: a morale band-aid and a career ladder
+
+/** Company-wide pizza. Absurdly effective. Cheap, on a cooldown. */
+export function actionPizzaParty(state) {
+  if (state.cooldowns.pizza > 0) return { success: false, reason: `Pizza cooldown: ${state.cooldowns.pizza.toFixed(1)}s` };
+  if (!state.employees.length) return { success: false, reason: 'No team to feed yet. Hire someone first.' };
+  if (state.cash < CONFIG.PIZZA_COST) return { success: false, reason: `Need ${fmtMoney(CONFIG.PIZZA_COST)} for company-wide pizza.` };
+  state.cash -= CONFIG.PIZZA_COST;
+  state.cooldowns.pizza = CONFIG.CD_PIZZA;
+  teamReact(state, 'pizza');
+  return { success: true, cost: CONFIG.PIZZA_COST, count: state.employees.length };
+}
+
+/** Promote an employee: title bump + permanent raise, big loyalty/happiness lift. */
+export function actionPromoteEmployee(state, empId) {
+  const emp = state.employees.find(e => e.id === empId);
+  if (!emp) return { success: false, reason: 'No such employee.' };
+  if ((emp.rank ?? 0) >= 5) return { success: false, reason: `${emp.name} already runs the place.` };
+  const bonus = Math.round(emp.salary * 6);
+  if (state.cash < bonus) return { success: false, reason: `Need ${fmtMoney(bonus)} to promote ${emp.name}.` };
+  state.cash -= bonus;
+  emp.rank = (emp.rank ?? 0) + 1;
+  emp.salary = Math.round(emp.salary * (1 + CONFIG.PROMOTE_RAISE));
+  const thresh = [0, 45, 120, 250, 460, 760];
+  emp.experience = Math.max(emp.experience || 0, thresh[Math.min(emp.rank, thresh.length - 1)]);
+  teamReact(state, 'promote', { who: emp });
+  return { success: true, cost: bonus, employee: emp, title: getEmployeeTitle(emp) };
+}
+
+
+//  Product Eras  start small (garage apps), end on the frontier (space, defense).
+// Unlocked by products shipped OR funding round reached. Each era reskins the
+// develop modal's three picks and scales the economics up.
+export const PRODUCT_ERAS = [
+  {
+    id: 'garage', name: 'Garage Apps', reqProducts: 0, reqRound: 0, mrrMult: 1, devMult: 1,
+    industries: [
+      { key: 'AI', color: '#4D6BFF', icon: 'AI', names: ['Synapse', 'Promptly', 'Cortex', 'NeuralNote'] },
+      { key: 'Social', color: '#8B5CF6', icon: '@', names: ['Yapp', 'Clout', 'Bleat', 'Mood'] },
+      { key: 'Gaming', color: '#FF4D9D', icon: 'GM', names: ['PixelPit', 'RageQuit', 'LootLoop', 'Respawn'] },
+      { key: 'Finance', color: '#FF9A1F', icon: '$', names: ['CoinFlip', 'YieldVibe', 'FOMOFlow', 'SpendBuddy'] },
+      { key: 'Health', color: '#28C7D8', icon: '+', names: ['ZenLeaf', 'PulsePal', 'CalmWave', 'VitaMind'] },
+      { key: 'Robotics', color: '#19C37D', icon: 'RB', names: ['Botly', 'ServoSnack', 'RoboPal', 'TinTen'] },
+    ],
+    buzzwords: ['Blockchain', 'Quantum', 'Metaverse', 'AGI', 'Web4', 'Crypto'],
+    audiences: ['Investors', 'Influencers', 'Kids', 'Pets', 'Boomers', 'Students'],
+  },
+  {
+    id: 'scaleup', name: 'Scale-Up Platforms', reqProducts: 1, reqRound: 1, mrrMult: 1.6, devMult: 1.25,
+    industries: [
+      { key: 'SaaS', color: '#4D6BFF', icon: 'SA', names: ['StackFlow', 'OpsGenie', 'SyncMesh', 'DataDrip'] },
+      { key: 'AdTech', color: '#FF4D9D', icon: 'AD', names: ['ClickStorm', 'AdMancer', 'FunnelFox', 'PixelBid'] },
+      { key: 'FinTech', color: '#FF9A1F', icon: 'FT', names: ['LedgerX', 'NeoBanq', 'CardlessCo', 'PayMancer'] },
+      { key: 'Logistics', color: '#19C37D', icon: 'LG', names: ['ShipMesh', 'CrateAI', 'PalletPilot', 'LastMileX'] },
+      { key: 'HealthTech', color: '#28C7D8', icon: 'HT', names: ['CareCloud', 'MediMesh', 'ClinIQ', 'VitalsAI'] },
+      { key: 'Creator', color: '#8B5CF6', icon: 'CR', names: ['CreatorOS', 'PatronPay', 'ClipFarm', 'SubStackr'] },
+    ],
+    buzzwords: ['AI-Native', 'Vertical', 'Agentic', 'Onchain', 'Realtime', 'Edge'],
+    audiences: ['Enterprises', 'SMBs', 'Creators', 'Developers', 'Hospitals', 'Governments'],
+  },
+  {
+    id: 'deeptech', name: 'Deep Tech', reqProducts: 3, reqRound: 2, mrrMult: 2.6, devMult: 1.6,
+    industries: [
+      { key: 'Quantum', color: '#4D6BFF', icon: 'QC', names: ['QubitWorks', 'EntangleAI', 'SpookyOS', 'CoherentCo'] },
+      { key: 'Chips', color: '#19C37D', icon: 'CH', names: ['SiliconForge', 'WaferWorks', 'NanoFab', 'TapeoutAI'] },
+      { key: 'AGI', color: '#8B5CF6', icon: 'GI', names: ['Prometheus', 'Oracle9', 'MindForge', 'GodModeAI'] },
+      { key: 'XR', color: '#FF4D9D', icon: 'XR', names: ['HoloDeck', 'MetaLens', 'PhantomUI', 'SpecsCo'] },
+      { key: 'Cyber', color: '#28C7D8', icon: 'CY', names: ['ZeroDay', 'SentinelX', 'RedTeamAI', 'HoneyTrap'] },
+      { key: 'Robotics+', color: '#FF9A1F', icon: 'RX', names: ['Atlas Works', 'GraspAI', 'SwarmCo', 'HumanoidX'] },
+    ],
+    buzzwords: ['Photonic', 'Neuromorphic', 'Sovereign', 'Autonomous', 'Post-Quantum', 'Zero-Trust'],
+    audiences: ['Megacorps', 'Governments', 'Labs', 'Hyperscalers', 'Defense', 'Universities'],
+  },
+  {
+    id: 'science', name: 'Science & Biotech', reqProducts: 5, reqRound: 3, mrrMult: 4, devMult: 2,
+    industries: [
+      { key: 'Biotech', color: '#19C37D', icon: 'BT', names: ['HelixWorks', 'CRISPRco', 'CellForge', 'GeneMancer'] },
+      { key: 'Fusion', color: '#FF9A1F', icon: 'FU', names: ['StarCage', 'Tokamak Co', 'IgnitionX', 'PlasmaWorks'] },
+      { key: 'Climate', color: '#28C7D8', icon: 'CL', names: ['CarbonVault', 'SkyScrub', 'TerraCool', 'GeoMesh'] },
+      { key: 'Neurotech', color: '#8B5CF6', icon: 'NT', names: ['CortexLink', 'MindBridge', 'WetwareOS', 'SynapseX'] },
+      { key: 'Materials', color: '#4D6BFF', icon: 'MT', names: ['GrapheneCo', 'MetaMaterial', 'SelfHealX', 'AeroGelle'] },
+      { key: 'Longevity', color: '#FF4D9D', icon: 'LV', names: ['ForeverYoung', 'TeloMancer', 'ResetBio', 'AgelessAI'] },
+    ],
+    buzzwords: ['Programmable', 'Synthetic', 'Closed-Loop', 'Self-Healing', 'Gene-Edited', 'Room-Temp'],
+    audiences: ['Governments', 'Pharma', 'Billionaires', 'Nations', 'Cartels', 'Humanity'],
+  },
+  {
+    id: 'space', name: 'Space', reqProducts: 7, reqRound: 4, mrrMult: 6, devMult: 2.5,
+    industries: [
+      { key: 'Satellites', color: '#4D6BFF', icon: 'ST', names: ['OrbitMesh', 'ConstellAI', 'LEOworks', 'SkyNetCo'] },
+      { key: 'Rockets', color: '#FF9A1F', icon: 'RK', names: ['BoosterCo', 'ReusableX', 'EscapeVel', 'ThrustMancer'] },
+      { key: 'Asteroid Mining', color: '#19C37D', icon: 'AM', names: ['RockHopper', 'CoreDriller', 'BeltCo', 'OreOrbit'] },
+      { key: 'Orbital Data', color: '#28C7D8', icon: 'OD', names: ['VacuumCloud', 'OrbitalDB', 'GravWell', 'DownlinkX'] },
+      { key: 'Space Tourism', color: '#FF4D9D', icon: 'SX', names: ['ZeroGresort', 'OrbitClub', 'ApogeeCo', 'BillionaireBus'] },
+      { key: 'Lunar', color: '#8B5CF6', icon: 'LU', names: ['MoonBase', 'RegolithCo', 'LunaFarm', 'CraterWorks'] },
+    ],
+    buzzwords: ['Reusable', 'In-Orbit', 'Sub-Orbital', 'Interplanetary', 'Cislunar', 'Hypersonic'],
+    audiences: ['Governments', 'Billionaires', 'Nations', 'Colonists', 'Megacorps', 'Humanity'],
+  },
+  {
+    id: 'frontier', name: 'Frontier & Defense', reqProducts: 9, reqRound: 5, mrrMult: 9, devMult: 3,
+    industries: [
+      { key: 'Autonomous Defense', color: '#FF4D5E', icon: 'DF', names: ['AegisAI', 'SentinelOS', 'GuardianX', 'WarMind'] },
+      { key: 'Drones', color: '#FF9A1F', icon: 'DR', names: ['SwarmCo', 'SkyReaper', 'LoiterAI', 'DroneMesh'] },
+      { key: 'Surveillance', color: '#8B5CF6', icon: 'SV', names: ['PanoptiCo', 'AllSeeingAI', 'EyeNet', 'TraceMancer'] },
+      { key: 'Cyberwar', color: '#28C7D8', icon: 'CW', names: ['BlackICE', 'LogicBomb', 'KillSwitch', 'GhostProtocol'] },
+      { key: 'AGI Labs', color: '#4D6BFF', icon: 'AG', names: ['Singularity', 'Basilisk', 'OmniMind', 'LastInventionCo'] },
+      { key: 'Nuclear', color: '#19C37D', icon: 'NU', names: ['ChainReaction', 'CritMass', 'HalfLifeCo', 'FalloutAI'] },
+    ],
+    buzzwords: ['Autonomous', 'Hypersonic', 'Sovereign', 'Lethal', 'Classified', 'Dual-Use'],
+    audiences: ['Militaries', 'Nations', 'Agencies', 'Warlords', 'Coalitions', 'Humanity'],
+  },
+];
+
+/** Highest era unlocked by products shipped OR funding round reached. */
+export function getUnlockedEra(state) {
+  const shipped = (state.shippedProducts || []).length;
+  const round = state.roundIndex || 0;
+  let era = 0;
+  for (let i = 0; i < PRODUCT_ERAS.length; i++) {
+    const e = PRODUCT_ERAS[i];
+    if (shipped >= e.reqProducts || round >= e.reqRound) era = i;
+  }
+  return era;
+}
+export function getEra(state) { return PRODUCT_ERAS[getUnlockedEra(state)]; }
+
+
+/* ===== Inbox proposals: openable, funny, different every run ===== */
+const _pVCs = ['Redwood Ventures', 'Sequsoia Capital', 'Andreessen Horrorwitz', 'Tiger Globule', 'SoftBonk Vision', 'Y Combinatorium', "Founders Fundn't", 'Lightspeeed Partners', 'Benchpress Capital'];
+const _pInfluencers = ['@CryptoChad', '@GrowthGoblin', '@SaaStradamus', '@TheHustleHusk', '@VCsBeLike', '@ToTheMoonBoi'];
+const _pBuyers = ['MegaCorp', 'Globotech', 'Oracorp', 'Amazoom', 'Meta-Meta', 'Hooli'];
+function _pri(a, b) { return Math.floor(a + Math.random() * (b - a + 1)); }
+function _ppick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+export const PROPOSALS = [
+  (st) => { const vc = _ppick(_pVCs), amt = _pri(15, 45) * 1000, pct = _pri(6, 18); return {
+    source: 'em', who: 'Investor Update', handle: vc, cta: 'Review proposal', accentLabel: 'TERM SHEET',
+    pitch: `${vc} is "very excited" about your traction. They'll wire ${fmtMoney(amt)} for ${pct}% and a board seat they will never attend.`,
+    accept: { cash: amt, hype: 6, outcome: `Took ${fmtMoney(amt)} from ${vc}. You now have a boss who DMs "quick q" at 2am.` },
+    decline:{ hype: 3, outcome: `You ghosted ${vc}. Your cap table is grateful; your runway is not.` } }; },
+  (st) => { const who = _ppick(_pInfluencers), reach = _pri(40, 900), cost = _pri(2, 6) * 1000; return {
+    source: 'x', who: who, handle: `${reach}K followers`, cta: 'See the deal', accentLabel: 'COLLAB',
+    pitch: `${who} will shill ${st.companyName || 'you'} to ${reach}K followers for ${fmtMoney(cost)} and "good vibes". 80% of the followers are also ${who}.`,
+    accept: { hype: _pri(12, 18), cash: -cost, outcome: `${who} posted. 12 sales, 4,000 new haters, 1 vague legal threat. Hype is up.` },
+    decline:{ outcome: `You passed on ${who}. They subtweet you within the hour. Engagement, technically.` } }; },
+  (st) => { const buyer = _ppick(_pBuyers), amt = _pri(80, 260) * 1000; return {
+    source: 'em', who: 'Acquisition Offer', handle: buyer, cta: 'Read the term sheet', accentLabel: 'BUYOUT',
+    pitch: `${buyer} wants to acqui-hire you for ${fmtMoney(amt)}. Your product gets "sunset" in 90 days; your title becomes "Senior Vibe Engineer II".`,
+    accept: { cash: amt, hype: -8, morale: -12, outcome: `Sold to ${buyer}. The team got hoodies. You got a 4-year vesting cliff.` },
+    decline:{ hype: 10, outcome: `You told ${buyer} no. Independent, principled, and gloriously broke.` } }; },
+  (st) => { const n = _pri(1, 4), settle = _pri(8, 20) * 1000; return {
+    source: 'em', who: 'Legal Notice', handle: 'a firm with three surnames', cta: 'Open the letter', accentLabel: 'LAWSUIT',
+    pitch: `A class action claims your app "emotionally damaged" ${n}M users. Settle quietly for ${fmtMoney(settle)}, or fight it loudly in the press.`,
+    accept: { cash: -settle, outcome: `Settled. The NDA is airtight. The Reddit megathread is not.` },
+    decline:{ hype: -_pri(4, 10), outcome: `You're fighting it. Discovery is about to become a YouTube documentary.` } }; },
+  (st) => { const bots = _pri(1, 5), cost = _pri(10, 30) * 1000; return {
+    source: 'x', who: 'A Man With A Van', handle: 'definitely-real-users.biz', cta: 'Inspect the offer', accentLabel: 'GROWTH',
+    pitch: `Buy ${bots}M "users" for ${fmtMoney(cost)}. They are bots, but enthusiastic ones, and your charts will look absolutely incredible.`,
+    accept: { hype: _pri(8, 16), cash: -cost, outcome: `Numbers go up! Engagement is now 8,000 accounts all named some variant of "Brad".` },
+    decline:{ outcome: `You declined the bots. Your growth chart remains tragically, beautifully honest.` } }; },
+  (st) => { const cost = _pri(1, 4) * 1000; return {
+    source: 'pc', who: 'Podcast Invite', handle: 'All-In-On-Ourselves', cta: 'RSVP', accentLabel: 'PR',
+    pitch: `Come on the pod to "tell your story" (read a 90-minute ad). Great exposure. Exposure, notably, does not pay the AWS bill.`,
+    accept: { hype: _pri(6, 12), cash: -cost, outcome: `You went on. Said "at the end of the day" 31 times. Somehow, hype is up.` },
+    decline:{ outcome: `You skipped the pod. They booked a competitor instead. That one stings.` } }; },
+];
+
+let _pidSeq = 0;
+/** Roll a fresh proposal instance (with a unique pid). */
+export function rollProposal(state) {
+  const p = _ppick(PROPOSALS)(state);
+  p.pid = 'prop' + (++_pidSeq) + '_' + Math.floor(Math.random() * 1e4).toString(36);
+  return p;
+}
+/** Apply a proposal's accept/decline effects. Returns the outcome line + deltas. */
+export function actionResolveProposal(state, proposal, accept) {
+  const eff = (accept ? proposal.accept : proposal.decline) || {};
+  let spent = 0;
+  if (eff.cash) { state.cash += eff.cash; if (eff.cash < 0) spent = -eff.cash; }
+  if (eff.debt) state.debt = (state.debt || 0) + eff.debt;
+  if (eff.hype) state.hype = clamp((state.hype || 0) + eff.hype, 0, CONFIG.HYPE_MAX);
+  if (eff.morale != null) state.morale = clamp((state.morale ?? CONFIG.MORALE_START) + eff.morale, 0, 100);
+  return { success: true, outcome: eff.outcome || '', cash: eff.cash || 0, hype: eff.hype || 0, spent };
 }

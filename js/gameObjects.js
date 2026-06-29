@@ -1095,6 +1095,28 @@ export class EmployeeCharacter {
     this._onArrive = onArrive;
   }
 
+  /** Follow a list of {x,z} waypoints (from the pathfinder), then call onArrive. */
+  walkPath(points, onArrive = null) {
+    if (!points || !points.length) { this._path = null; if (onArrive) onArrive(); return; }
+    this._path = points.slice();
+    this._pathArrive = onArrive;
+    this._advancePath();
+  }
+  _advancePath() {
+    if (!this._path || !this._path.length) {
+      this._path = null;
+      const cb = this._pathArrive; this._pathArrive = null;
+      if (cb) cb();
+      return;
+    }
+    const pt = this._path.shift();
+    this.walkTo(pt.x, pt.z, () => this._advancePath());
+  }
+
+  /** Quick sit-down / stand-up at the desk. */
+  sit()   { this._sitTarget = 1; }
+  stand() { this._sitTarget = 0; }
+
   isWalking() { return !!this._walkTarget; }
 
   /** Advance walking movement. Call with dt each frame for walkers. */
@@ -1124,7 +1146,7 @@ export class EmployeeCharacter {
     if (!blocked(nx, nz)) { p.x = nx; p.z = nz; }
     else if (!blocked(nx, p.z)) { p.x = nx; }
     else if (!blocked(p.x, nz)) { p.z = nz; }
-    else { this._walkTarget = null; if (this._legs) { this._legs[0].rotation.x = 0; this._legs[1].rotation.x = 0; } return; }
+    else { this._walkTarget = null; if (this._legs) { this._legs[0].rotation.x = 0; this._legs[1].rotation.x = 0; } const cb = this._onArrive; this._onArrive = null; if (cb) cb(); return; }
 
     this.root.rotation.y = Math.atan2(dx, dz);
     this._legPhase += dt * 9;
@@ -1151,16 +1173,34 @@ export class EmployeeCharacter {
     this.energyMat.emissiveIntensity = burnedOut ? 0.2 : 1.0 + (1 - this._energy);
   }
 
+  /** Trigger a brief celebratory jump (launches, funding, era unlocks). */
+  cheer(dur = 1.5) { this._cheerT = dur; }
+  /** 0 = miserable/slumped, 1 = thriving/lively. Drives liveliness + posture. */
+  setMood(m) { this._mood = Math.max(0, Math.min(1, m)); }
+
   update(time, seed = 0) {
-    // Typing bob + occasional agile little hop (spikes only near the sine peak)
-    const bob = this._burned ? 0 : Math.sin(time * 4 + seed * 1.7) * 0.01;
-    const hop = this._burned ? 0 : Math.pow(Math.max(0, Math.sin(time * 0.9 + seed * 2.3)), 16) * 0.14;
-    this.root.position.y = this._baseY + bob + hop;
-    // Burnout slump + twitch
-    this.root.rotation.x = this._burned ? 0.35 : 0;
-    if (this._burned) {
-      this.root.rotation.z = Math.sin(time * 20 + seed) * 0.01;
-    }
+    const dt = this._lastT == null ? 0 : Math.max(0, Math.min(0.1, time - this._lastT));
+    this._lastT = time;
+    if (this._cheerT > 0) this._cheerT -= dt;
+    const cheering = this._cheerT > 0;
+    const mood = this._mood == null ? 0.6 : this._mood;   // 0 sad .. 1 thriving
+    const baseY = this._baseY || 0;
+    const sitTarget = this._sitTarget || 0;
+    this._sitAmt = (this._sitAmt || 0) + (sitTarget - (this._sitAmt || 0)) * Math.min(1, dt * 9);
+    const sit = this._sitAmt;
+
+    // Typing bob (livelier when happy) + occasional hop; cheering = real jumping.
+    const bob = this._burned ? 0 : Math.sin(time * 4 + seed * 1.7) * (0.008 * (0.6 + mood));
+    let hop;
+    if (cheering) hop = Math.abs(Math.sin(time * 11 + seed)) * 0.2;
+    else hop = this._burned ? 0 : Math.pow(Math.max(0, Math.sin(time * 0.9 + seed * 2.3)), 16) * (0.10 + mood * 0.12);
+    this.root.position.y = baseY + bob + hop - 0.11 * sit;
+
+    // Posture: burnout slumps hardest, stress/unhappiness slumps a little, cheering leans back.
+    const stressSlump = (!this._burned && mood < 0.45) ? (0.45 - mood) * 0.5 : 0;
+    this.root.rotation.x = (this._burned ? 0.35 : (cheering ? -0.12 : stressSlump)) + 0.16 * sit;
+    this.root.rotation.z = this._burned ? Math.sin(time * 20 + seed) * 0.01 : 0;
+
     if (this.energyRing) this.energyRing.rotation.z = time * 0.8;
     if (this._plumb) {
       this._plumb.rotation.y = time * 2.2;
@@ -1273,6 +1313,9 @@ export class DeskStation {
     if (this.character) this.character.setEnergy(level, burnedOut);
   }
 
+  setMood(m) { if (this.character) this.character.setMood(m); }
+  cheer(dur) { if (this.character) this.character.cheer(dur); }
+
   update(time, seed = 0) {
     if (this.monitorGroup.visible) {
       const pulse = 0.6 + 0.25 * Math.sin(time * 1.4 + seed * 2.1);
@@ -1287,6 +1330,19 @@ export class DeskStation {
 // 
 //  PRODUCT SHOWCASE  shipped absurd products float along the back wall
 // 
+function productGeometry(shape) {
+  switch (shape) {
+    case 'sphere':       return new THREE.SphereGeometry(0.16, 24, 18);
+    case 'cone':         return new THREE.ConeGeometry(0.16, 0.3, 6);
+    case 'cylinder':     return new THREE.CylinderGeometry(0.13, 0.13, 0.28, 16);
+    case 'octahedron':   return new THREE.OctahedronGeometry(0.18);
+    case 'icosahedron':  return new THREE.IcosahedronGeometry(0.18);
+    case 'torus':        return new THREE.TorusGeometry(0.13, 0.055, 12, 24);
+    case 'dodecahedron': return new THREE.DodecahedronGeometry(0.18);
+    default:             return new THREE.BoxGeometry(0.26, 0.26, 0.26);
+  }
+}
+
 export class ProductShowcase {
   constructor() {
     this.root     = new THREE.Group();
@@ -1314,16 +1370,16 @@ export class ProductShowcase {
     this.root.add(glow);
   }
 
-  addProduct(idx) {
-    const color = CHARACTER_PALETTE[idx % CHARACTER_PALETTE.length];
+  addProduct(idx, brand) {
+    const colorHex = (brand && brand.color) || CHARACTER_PALETTE[idx % CHARACTER_PALETTE.length];
+    const color = new THREE.Color(colorHex);
     const mat = new THREE.MeshStandardMaterial({
-      color,
-      emissive: new THREE.Color(color),
+      color, emissive: color.clone(),
       emissiveIntensity: 0.7,
       metalness: 0.6, roughness: 0.25,
       transparent: true, opacity: 0.95,
     });
-    const cube = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.26), mat);
+    const cube = new THREE.Mesh(productGeometry(brand && brand.shape), mat);
     const x = 1.15 + (idx % 6) * 0.55;
     const y = 1.15 + Math.floor(idx / 6) * 0.5;
     cube.position.set(x, y, -3.4);

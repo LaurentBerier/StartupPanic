@@ -287,6 +287,16 @@ const SOCIAL_POSTS = [
   'just A/B tested two fonts for 6 weeks while the product caught fire',
   'morale is at an all-time high (we let everyone go, so it\'s just me)',
 ];
+const REACTION_DELTAS = [
+  { text: '+10 Hype', tone: 'pos' },
+  { text: '+4 Users', tone: 'pos' },
+  { text: '+8 Hype', tone: 'pos' },
+  { text: '-15 Trust', tone: 'neg' },
+  { text: '-9 Burnout', tone: 'pos' },
+  { text: '+6 Trust', tone: 'pos' },
+  { text: '-12 Trust', tone: 'neg' },
+  { text: '+20 Hype', tone: 'pos' },
+];
 const FEED_HANDLES = ['@hustleharder', '@vc_visionary', '@growth_pilled', '@touch_grass_ceo', '@series_z',
   '@deleted_my_ethics', '@founder_mode', '@pre_revenue_pat', '@disrupt_daddy', '@chief_vibes_officer',
   '@bagholder_betty', '@thought_leader_69', '@ngmi_or_wagmi', '@exit_liquidity',
@@ -302,11 +312,13 @@ export function pushFeedItem(state) {
   const el = document.createElement('div');
   if (Math.random() < 0.5) {
     el.className = 'feed-item feed-news';
-    el.innerHTML = `<div class="feed-src">${rand(NETWORKS)} - BREAKING</div><div class="feed-text">${fill(rand(NEWS_HEADLINES))}</div>`;
+    const d = rand(REACTION_DELTAS);
+    el.innerHTML = `<div class="feed-src">${rand(NETWORKS)} - BREAKING</div><div class="feed-text">${fill(rand(NEWS_HEADLINES))}</div><div class="feed-delta ${d.tone}">${d.text}</div>`;
   } else {
     const h = rand(FEED_HANDLES);
+    const d = rand(REACTION_DELTAS);
     el.className = 'feed-item feed-social';
-    el.innerHTML = `<div class="feed-head"><span class="feed-av">${h[1].toUpperCase()}</span><span class="feed-handle">${h}</span><span class="feed-dot"></span><span class="feed-time">now</span></div><div class="feed-text">${fill(rand(SOCIAL_POSTS))}</div>`;
+    el.innerHTML = `<div class="feed-head"><span class="feed-av">${h[1].toUpperCase()}</span><span class="feed-handle">${h}</span><span class="feed-dot"></span><span class="feed-time">now</span></div><div class="feed-text">${fill(rand(SOCIAL_POSTS))}</div><div class="feed-delta ${d.tone}">${d.text}</div>`;
   }
   feed.insertBefore(el, feed.firstChild);
   while (feed.children.length > 16) feed.removeChild(feed.lastChild);

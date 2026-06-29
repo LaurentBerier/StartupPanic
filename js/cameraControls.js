@@ -35,8 +35,10 @@ export class CameraControls {
     this._velPhi    = 0;
     this._velRadius = 0;
 
-    // WASD pan
+    // WASD pan + follow state (camera detaches from the founder when you pan)
     this._keys = { w: false, a: false, s: false, d: false };
+    this.follow = true;
+    this.bounds = { minX: -7, maxX: 7, minZ: -6, maxZ: 6 };
 
     this._bind();
     this._updateCamera();
@@ -74,8 +76,8 @@ export class CameraControls {
     this._lastY = e.clientY;
 
     // Accumulate rotation delta (slow orbit)
-    this._velTheta -= dx * 0.0040;
-    this._velPhi   -= dy * 0.0032;
+    this._velTheta -= dx * 0.0023;
+    this._velPhi   -= dy * 0.0019;
   }
 
   _onMouseUp() {
@@ -111,8 +113,8 @@ export class CameraControls {
       const dy = e.touches[0].clientY - this._lastY;
       this._lastX = e.touches[0].clientX;
       this._lastY = e.touches[0].clientY;
-      this._velTheta -= dx * 0.0040;
-      this._velPhi   -= dy * 0.0032;
+      this._velTheta -= dx * 0.0023;
+      this._velPhi   -= dy * 0.0019;
     } else if (e.touches.length === 2) {
       const dx   = e.touches[0].clientX - e.touches[1].clientX;
       const dy   = e.touches[0].clientY - e.touches[1].clientY;
@@ -133,6 +135,7 @@ export class CameraControls {
       case 'KeyS': case 'ArrowDown':  this._keys.s = true; break;
       case 'KeyA': case 'ArrowLeft':  this._keys.a = true; break;
       case 'KeyD': case 'ArrowRight': this._keys.d = true; break;
+      case 'KeyF': case 'KeyC': this.follow = true; break;   // recenter on the founder
     }
   }
 
@@ -146,15 +149,23 @@ export class CameraControls {
   }
 
   update(dt) {
-    // WASD panning  move target along horizontal plane
-    const panSpeed = 4 * dt;
-    if (this._keys.w) this._velPhi   -= panSpeed * 0.05;
-    if (this._keys.s) this._velPhi   += panSpeed * 0.05;
-    if (this._keys.a) this._velTheta -= panSpeed * 0.05;
-    if (this._keys.d) this._velTheta += panSpeed * 0.05;
+    // WASD / arrows pan the camera target across the floor (screen-relative).
+    // Panning detaches the camera from the founder until you press F to recenter.
+    const f  = (this._keys.w ? 1 : 0) - (this._keys.s ? 1 : 0);
+    const rt = (this._keys.d ? 1 : 0) - (this._keys.a ? 1 : 0);
+    if (f || rt) {
+      const panSpeed = 9 * dt * (this.radius / 13);
+      const st = Math.sin(this.theta), ct = Math.cos(this.theta);
+      this.target.x += (-st * f + ct * rt) * panSpeed;
+      this.target.z += (-ct * f - st * rt) * panSpeed;
+      const b = this.bounds;
+      this.target.x = Math.max(b.minX, Math.min(b.maxX, this.target.x));
+      this.target.z = Math.max(b.minZ, Math.min(b.maxZ, this.target.z));
+      this.follow = false;
+    }
 
     // Apply spring damping to velocities
-    const damping = 1 - Math.min(1, dt * 8);
+    const damping = 1 - Math.min(1, dt * 10);
     this._velTheta  *= damping;
     this._velPhi    *= damping;
     this._velRadius *= damping;

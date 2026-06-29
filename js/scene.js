@@ -27,9 +27,9 @@ export function getFireLights() { return fireLights; }
 export function initScene(canvas) {
   //  Scene 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xedeff7);
+  scene.background = new THREE.Color(0xf4ece0);
   // Subtle fog for depth
-  scene.fog = new THREE.FogExp2(0xedeff7, 0.035);
+  scene.fog = new THREE.FogExp2(0xf4ece0, 0.032);
 
   //  Camera 
   camera = new THREE.PerspectiveCamera(
@@ -67,11 +67,11 @@ export function initScene(canvas) {
 
 function setupLighting() {
   // Ambient IBL-style light for the bright SaaS-pop backdrop
-  ambientLight = new THREE.AmbientLight(0xf6f7ff, 1.0);
+  ambientLight = new THREE.AmbientLight(0xfff2e0, 1.0);
   scene.add(ambientLight);
 
   // Primary directional light  cool white, top-front
-  directionalLight = new THREE.DirectionalLight(0xe8f0ff, 1.6);
+  directionalLight = new THREE.DirectionalLight(0xffe6c2, 1.55);
   directionalLight.position.set(4, 10, 6);
   directionalLight.castShadow = true;
   directionalLight.shadow.mapSize.width  = 2048;
@@ -91,12 +91,12 @@ function setupLighting() {
   scene.add(rimLight);
 
   // Secondary fill  warm amber from side (suggests desk lamp / screen glow)
-  const fillLight = new THREE.PointLight(0xffb300, 0.6, 20);
+  const fillLight = new THREE.PointLight(0xffb84d, 0.85, 22);
   fillLight.position.set(-3, 2, -2);
   scene.add(fillLight);
 
   // Subtle hemisphere for sky/ground gradient
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xedeff7, 0.35);
+  const hemiLight = new THREE.HemisphereLight(0xfff4e6, 0xe6d6bf, 0.40);
   scene.add(hemiLight);
 }
 
