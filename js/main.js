@@ -43,6 +43,7 @@ import {
 } from './ui.js';
 import { CameraControls } from './cameraControls.js';
 import { findPath } from './pathfind.js';
+import { initLevelLink } from './levelLoader.js';
 import { openTimingGame, openTapGame, openClickRush } from './minigames.js';
 const PR_PHRASES = ['we hear you', 'lessons were learned', 'we take this seriously', 'a small number of users', 'out of an abundance of caution', 'your trust matters', 'this does not reflect our values', 'we have paused the feature', 'an independent review', 'effective immediately'];
 const PR_LOGS = ['Legal redlined the whole thing', 'PR: "can we blame a typo?"', 'Swapped "sorry" for "regret"', 'Added the word "journey"', 'CEO wants more synergy in it', 'Comms: "post it before the podcast"', 'Board: "is this lawsuit-proof?"', 'Added a sad-but-hopeful emoji', 'Reframed it as a "learning moment"', 'Final draft posted 4:59pm Friday'];
@@ -159,6 +160,7 @@ async function init() {
 
   scene.add(createVoidGrid());
   scene.add(createAmbientOrbs());
+  initLevelLink(scene);   // dynamic link with the three.js Editor (level.json)
 
   updateLoadingProgress(80);
   await delay(100);
@@ -269,18 +271,33 @@ function startGame() {
   document.getElementById('game-canvas').style.display = 'block';
 
   // Wire action buttons
-  document.getElementById('btn-build').onclick          = handleOpenBuildModal;
-  document.getElementById('btn-hire').onclick           = handleOpenHireModal;
-  document.getElementById('btn-develop').onclick        = handleOpenDevelopModal;
-  document.getElementById('btn-research').onclick       = handleOpenResearchModal;
-  document.getElementById('btn-launch-product').onclick = handleOpenLaunchModal;
-  document.getElementById('btn-ship-update').onclick     = handleOpenProductModal;
-  document.getElementById('btn-marketing').onclick       = handleMarketingPost;
-  document.getElementById('btn-vc-pitch').onclick       = handleOpenPitchModal;
-  document.getElementById('btn-caffeinate').onclick     = handleCaffeinate;
-  document.getElementById('btn-pivot').onclick          = handlePivot;
-  document.getElementById('btn-loan').onclick           = handleOpenLoanModal;
-  document.getElementById('btn-pause').onclick          = pauseGame;
+  const wire = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  wire('btn-build', handleOpenBuildModal);
+  wire('btn-hire', handleOpenHireModal);
+  wire('btn-develop', handleOpenDevelopModal);
+  wire('btn-research', handleOpenResearchModal);
+  wire('btn-launch-product', handleOpenLaunchModal);
+  wire('btn-ship-update', handleOpenProductModal);
+  wire('btn-marketing', handleMarketingPost);
+  wire('btn-vc-pitch', handleOpenPitchModal);
+  wire('btn-caffeinate', handleCaffeinate);
+  wire('btn-pivot', handlePivot);
+  wire('btn-loan', handleOpenLoanModal);
+  wire('menu-pause', pauseGame);
+  // Top-right HUD menu (hamburger): toggle + items
+  const _menuBtn = document.getElementById('btn-hud-menu');
+  const _menuDrop = document.getElementById('hud-menu-dropdown');
+  if (_menuBtn && _menuDrop) {
+    _menuBtn.onclick = (e) => { e.stopPropagation(); _menuDrop.classList.toggle('hidden'); };
+    document.addEventListener('click', (e) => { if (!_menuBtn.contains(e.target) && !_menuDrop.contains(e.target)) _menuDrop.classList.add('hidden'); });
+  }
+  wire('menu-options', () => { if (_menuDrop) _menuDrop.classList.add('hidden'); showScreen('how-to-play-screen'); });
+  wire('menu-theme', () => {
+    document.body.classList.toggle('theme-light');
+    const lbl = document.getElementById('menu-theme-label');
+    if (lbl) lbl.textContent = document.body.classList.contains('theme-light') ? 'Dark mode' : 'Light mode';
+    if (_menuDrop) _menuDrop.classList.add('hidden');
+  });
   document.querySelectorAll('[data-dev-mode]').forEach(btn => {
     btn.onclick = () => handleSetDevMode(btn.dataset.devMode);
   });
@@ -1776,14 +1793,14 @@ function triggerShake(big = false) {
 // 
 function pauseGame() {
   cancelPlacement(); state.paused = true;
-  document.getElementById('pause-screen').classList.remove('hidden');
-  document.getElementById('pause-screen').classList.add('active');
+  const ps = document.getElementById('pause-screen');
+  if (ps) { ps.classList.remove('hidden'); ps.classList.add('active'); }
 }
 
 function resumeGame() {
   state.paused = false;
-  document.getElementById('pause-screen').classList.remove('active');
-  document.getElementById('pause-screen').classList.add('hidden');
+  const ps = document.getElementById('pause-screen');
+  if (ps) { ps.classList.remove('active'); ps.classList.add('hidden'); }
   lastTime = performance.now(); // Reset dt to avoid jump
 }
 
@@ -1839,20 +1856,10 @@ function setupMenuNavigation() {
     showScreen('how-to-play-screen');
   };
 
-  document.getElementById('btn-back-to-menu').onclick = () => {
-    showScreen('main-menu');
-  };
-
-  document.getElementById('btn-resume').onclick = () => {
-    resumeGame();
-  };
-
-  document.getElementById('btn-quit-to-menu').onclick = () => {
-    stopGame();
-    hideHUD();
-    clearAllEventCards();
-    showScreen('main-menu');
-  };
+  const _wm = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  _wm('btn-back-to-menu', () => showScreen('main-menu'));
+  _wm('btn-resume', () => resumeGame());
+  _wm('btn-quit-to-menu', () => { stopGame(); hideHUD(); clearAllEventCards(); showScreen('main-menu'); });
 
   document.getElementById('btn-restart').onclick = () => {
     hideScreen('game-over-screen');

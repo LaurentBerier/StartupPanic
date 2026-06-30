@@ -1,0 +1,532 @@
+/* ============================================================================
+   STARTUP PANIC — AURORA REDESIGN
+   Dark frosted-glass art direction with per-panel accent glow + clean icon set.
+   Loaded AFTER style.css. Every rule is scoped under html.aurora so it reliably
+   wins specificity over the layered legacy theme. Toggle html.theme-light for
+   the light variant.
+   ========================================================================== */
+
+/* ---------- TOKENS (remap the game's design tokens to Aurora dark glass) ---------- */
+html.aurora{
+  --font-sans:-apple-system,"SF Pro Display","SF Pro Text",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+
+  --color-bg:#0a0b10;
+  --color-surface:rgba(19,22,30,.82);
+  --color-surface2:rgba(30,34,46,.82);
+  --color-border:rgba(255,255,255,.1);
+  --color-border2:rgba(255,255,255,.16);
+  --color-text:#f3f5fa;
+  --color-text-dim:#a7adbe;
+
+  --color-cyan:#5b9dff;      /* primary accent (blue) */
+  --color-magenta:#ff4fa0;
+  --color-amber:#ffa53a;
+  --color-error:#ff5c6c;
+  --color-success:#2ed589;
+
+  --radius:14px; --radius-lg:22px;
+
+  /* aurora-specific */
+  --apanel:rgba(19,22,30,.82);
+  --apanel-2:rgba(28,32,43,.8);
+  --ahair:rgba(255,255,255,.1);
+  --ahair-2:rgba(255,255,255,.16);
+  --ainset:inset 0 1px 0 rgba(255,255,255,.06);
+  --ashadow:0 18px 50px -22px rgba(0,0,0,.72), 0 2px 8px -3px rgba(0,0,0,.5);
+  --achip:rgba(255,255,255,.06);
+  --achip-2:rgba(255,255,255,.1);
+  --atrack:rgba(255,255,255,.1);
+  --aink-mute:#737a8c;
+  --launch:linear-gradient(135deg,#ff9f2e 0%,#ff5c8d 52%,#ff4fa0 100%);
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --spring:cubic-bezier(.34,1.56,.64,1);
+
+  /* resource accents */
+  --c-cash:#2ed589; --c-runway:#ffa53a; --c-hype:#ff4fa0;
+  --c-users:#5b9dff; --c-burnout:#a175ff; --c-trust:#27d3c2;
+}
+
+/* ---------- LIGHT VARIANT ---------- */
+html.aurora.theme-light{
+  --color-bg:#eef0f7;
+  --color-surface:rgba(255,255,255,.92);
+  --color-surface2:rgba(255,255,255,.97);
+  --color-border:rgba(20,24,45,.12);
+  --color-border2:rgba(20,24,45,.2);
+  --color-text:#10131c;
+  --color-text-dim:#525a6e;
+  --apanel:rgba(255,255,255,.92);
+  --apanel-2:rgba(255,255,255,.97);
+  --ahair:rgba(20,24,45,.12);
+  --ahair-2:rgba(20,24,45,.2);
+  --ainset:inset 0 1px 0 rgba(255,255,255,.7);
+  --ashadow:0 18px 44px -20px rgba(28,34,72,.45), 0 2px 8px -4px rgba(28,34,72,.18);
+  --achip:rgba(20,24,45,.06);
+  --achip-2:rgba(20,24,45,.1);
+  --atrack:rgba(20,24,45,.12);
+  --aink-mute:#878da0;
+  --c-cash:#16b873; --c-runway:#e8870e; --c-hype:#e23a8a; --c-users:#2f6fe8; --c-burnout:#7d4ddb; --c-trust:#11ab9c;
+}
+
+/* ---------- BASE ---------- */
+html.aurora, html.aurora body{ background:var(--color-bg); color:var(--color-text); font-family:var(--font-sans); }
+html.aurora .num,
+html.aurora #cash-value, html.aurora #runway-days, html.aurora #hype-value,
+html.aurora #users-value, html.aurora #burnout-value, html.aurora #trust-value,
+html.aurora #valuation-display, html.aurora #net-value{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+
+/* icon helper */
+html.aurora svg.ic{ display:block; }
+html.aurora .ic-em{ display:none !important; } /* legacy emoji spans we replace with SVG */
+
+/* glass panel mixin applied to the major surfaces */
+html.aurora .hud-resource,
+html.aurora .objectives-panel,
+html.aurora .hud-action-panel,
+html.aurora .feed-item,
+html.aurora .social-feed-card,
+html.aurora .emp-card,
+html.aurora .dev-progress-card,
+html.aurora .modal-content,
+html.aurora .market-trend,
+html.aurora .milestone-banner,
+html.aurora .hud-pause-btn,
+html.aurora .hud-score-block{
+  -webkit-backdrop-filter:saturate(1.4) blur(22px); backdrop-filter:saturate(1.4) blur(22px);
+}
+
+/* =====================================================================
+   TOP BAR  — transparent container, floating glass resource cards
+   ===================================================================== */
+html.aurora .hud-top-bar{
+  position:absolute; top:0; left:0; right:0; height:auto; min-height:0;
+  background:transparent !important; border:none !important; backdrop-filter:none !important;
+  padding:16px 18px; gap:12px; display:flex; align-items:stretch;
+}
+html.aurora .hud-brand{
+  display:flex; align-items:center; order:0; min-width:0; color:var(--color-text);
+  font-family:var(--font-sans); font-weight:700; letter-spacing:-.2px; font-size:15px;
+  padding:0 6px;
+}
+html.aurora .hud-resource-grid{
+  order:1; flex:1; display:flex; flex-wrap:nowrap; gap:10px; align-items:stretch; background:none;
+}
+html.aurora .hud-resource{
+  min-width:130px; min-height:0; flex:1 1 0; display:grid;
+  grid-template-columns:auto 1fr; grid-template-rows:auto auto; gap:1px 11px;
+  align-items:center; padding:11px 14px;
+  background:var(--apanel) !important; border:1px solid var(--ahair) !important; border-radius:16px;
+  box-shadow:var(--ashadow), var(--ainset),
+             inset 0 0 0 1px color-mix(in srgb, var(--racc, var(--c-users)) 16%, transparent),
+             0 0 28px -14px color-mix(in srgb, var(--racc, var(--c-users)) 60%, transparent) !important;
+}
+html.aurora .hud-resource-icon{
+  grid-row:1 / span 2; grid-column:1; width:34px; height:34px; border-radius:11px;
+  display:grid; place-items:center; font-size:0; color:var(--racc, var(--c-users));
+  background:color-mix(in srgb, var(--racc, var(--c-users)) 18%, transparent); box-shadow:none;
+}
+html.aurora .hud-resource-icon svg.ic{ width:19px; height:19px; }
+html.aurora .resource-top{ grid-column:2; display:flex; flex-direction:column; align-items:flex-start; gap:0; min-width:0; }
+html.aurora .resource-top > span{ font-size:9.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--aink-mute); }
+html.aurora .resource-top > strong{ font-size:20px; font-weight:700; letter-spacing:-.4px; color:var(--color-text); line-height:1.1; }
+html.aurora .hud-resource > .resource-sub{ grid-column:2; font-size:11px; font-weight:600; color:var(--color-text-dim); }
+html.aurora .hud-resource > .resource-sub .net-negative{ color:var(--color-error); }
+html.aurora .hud-resource > .resource-sub .net-positive{ color:var(--c-cash); }
+/* keep the legacy per-resource accent vars but brighten them for dark glass */
+html.aurora .hud-resource-cash    { --racc:var(--c-cash); }
+html.aurora .hud-resource-runway  { --racc:var(--c-runway); }
+html.aurora .hud-resource-hype    { --racc:var(--c-hype); }
+html.aurora .hud-resource-users   { --racc:var(--c-users); }
+html.aurora .hud-resource-burnout { --racc:var(--c-burnout); }
+html.aurora .hud-resource-trust   { --racc:var(--c-trust); }
+html.aurora .hud-resource > .resource-track{ grid-column:2; height:5px; border-radius:3px; background:var(--atrack); overflow:hidden; margin-top:4px; }
+html.aurora .hud-resource .meter-fill{ background:var(--racc, var(--c-users)); }
+
+/* score block → right-side brand/mode pill */
+html.aurora .hud-score-block{
+  order:3; margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; justify-content:center;
+  padding:9px 18px; background:var(--apanel); border:1px solid var(--ahair);
+  border-radius:16px; box-shadow:var(--ashadow), var(--ainset);
+}
+html.aurora .score-label{ font-size:11px; font-weight:600; color:var(--aink-mute); letter-spacing:.3px; display:flex; align-items:center; gap:6px; }
+html.aurora .score-label::before{ content:""; width:6px; height:6px; border-radius:50%; background:var(--c-runway); box-shadow:0 0 8px var(--c-runway); }
+html.aurora .score-value{ font-size:17px; font-weight:700; letter-spacing:-.3px; color:var(--color-text); }
+
+/* =====================================================================
+   TOP-RIGHT MENU  — hamburger → pause / how-to-play / theme
+   ===================================================================== */
+html.aurora .hud-menu{ order:5; position:relative; display:flex; align-items:center; }
+html.aurora .hud-menu-btn{
+  width:44px; height:44px; display:grid; place-items:center; cursor:pointer; color:var(--color-text);
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:14px;
+  box-shadow:var(--ashadow), var(--ainset);
+  -webkit-backdrop-filter:saturate(1.4) blur(22px); backdrop-filter:saturate(1.4) blur(22px);
+  transition:background .2s var(--ease), transform .15s var(--spring);
+}
+html.aurora .hud-menu-btn:hover{ background:var(--achip-2); }
+html.aurora .hud-menu-btn:active{ transform:scale(.94); }
+html.aurora .hud-menu-btn svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
+html.aurora .hud-menu-dropdown{
+  position:absolute; top:calc(100% + 10px); right:0; z-index:120;
+  min-width:204px; padding:8px; display:flex; flex-direction:column; gap:2px;
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:16px;
+  box-shadow:var(--ashadow), var(--ainset);
+  -webkit-backdrop-filter:saturate(1.4) blur(22px); backdrop-filter:saturate(1.4) blur(22px);
+}
+html.aurora .hud-menu-dropdown.hidden{ display:none; }
+html.aurora .hud-menu-item{
+  display:flex; align-items:center; gap:12px; width:100%; padding:11px 12px;
+  background:none; border:none; border-radius:11px; cursor:pointer; text-align:left;
+  color:var(--color-text); font-family:var(--font-sans); font-size:14px; font-weight:600;
+  transition:background .15s var(--ease);
+}
+html.aurora .hud-menu-item:hover{ background:var(--achip); }
+html.aurora .hud-menu-item svg.ic{
+  width:18px; height:18px; flex:none; color:var(--color-text-dim);
+  fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+}
+
+/* =====================================================================
+   MILESTONE BANNER  — centered glass pill
+   ===================================================================== */
+html.aurora .milestone-banner{
+  top:106px; gap:11px; padding:9px 9px 9px 16px; border-radius:999px;
+  background:var(--apanel); border:1px solid var(--ahair);
+  box-shadow:var(--ashadow), var(--ainset), 0 0 30px -12px color-mix(in srgb, var(--c-runway) 45%, transparent);
+  color:var(--color-text); font-size:13px; font-weight:500;
+}
+html.aurora .milestone-banner .mb-emoji{ display:grid; place-items:center; width:22px; height:22px; color:var(--c-runway); }
+html.aurora .milestone-banner .mb-emoji svg{ width:18px; height:18px; }
+html.aurora .mb-text b{ font-weight:700; }
+html.aurora .milestone-banner .mb-view{
+  font-size:12px; font-weight:600; padding:6px 16px; border-radius:999px;
+  background:var(--color-text); color:var(--color-bg); border:none; transition:transform .2s var(--spring);
+}
+html.aurora .milestone-banner .mb-view:hover{ transform:scale(1.04); }
+
+/* =====================================================================
+   OBJECTIVES PANEL (top-left)
+   ===================================================================== */
+html.aurora .objectives-panel{
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:var(--radius-lg);
+  padding:15px 16px 11px; box-shadow:var(--ashadow), var(--ainset),
+    0 0 36px -14px color-mix(in srgb, var(--c-users) 32%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--c-users) 12%, transparent);
+}
+html.aurora .obj-head{
+  display:flex; align-items:center; gap:9px; margin-bottom:12px;
+  font-size:11px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--color-text-dim);
+}
+html.aurora .obj-head > span[aria-hidden]{ display:none; }
+html.aurora .obj-head svg.ic{ width:16px; height:16px; color:var(--color-text-dim); }
+html.aurora .obj-row{ display:flex; align-items:center; gap:12px; padding:9px 2px; }
+html.aurora .obj-row + .obj-row{ border-top:1px solid var(--ahair); }
+html.aurora .obj-check{
+  width:22px; height:22px; flex:none; border-radius:50%; display:grid; place-items:center;
+  border:2px solid var(--atrack); color:transparent; font-size:0;
+}
+html.aurora .obj-row.obj-done .obj-check{ background:var(--c-cash); border-color:var(--c-cash); color:#06140d; font-size:12px; font-weight:900; }
+html.aurora .obj-label{ flex:1; font-size:13.5px; font-weight:500; color:var(--color-text); }
+html.aurora .obj-row.obj-done .obj-label{ color:var(--color-text-dim); }
+html.aurora .obj-prog{ font-size:12px; font-weight:600; color:var(--aink-mute); font-variant-numeric:tabular-nums; }
+
+/* =====================================================================
+   EMPLOYEE BAR (bottom strip of team cards)
+   ===================================================================== */
+/* team panel: left-rail vertical list (below objectives) \u2014 matches the reference and frees the bottom */
+html.aurora .hud-employee-bar{
+  left:18px !important; right:auto !important; bottom:24px !important; top:auto !important;
+  width:300px !important; max-height:calc(100vh - 388px) !important; transform:none !important;
+  display:flex; flex-direction:column; gap:8px; overflow:hidden;
+  /* the bar is just a layout column for emp-cards — no panel of its own
+     (kills the stray dark pill bottom-left when there are no employees yet) */
+  background:transparent !important; border:none !important; box-shadow:none !important;
+  -webkit-backdrop-filter:none !important; backdrop-filter:none !important; padding:0 !important;
+}
+html.aurora .emp-cards{ display:flex; flex-direction:column !important; gap:8px; overflow-y:auto; flex:1; min-height:0; padding-right:2px; }
+html.aurora .emp-cards::-webkit-scrollbar{ width:6px; } html.aurora .emp-cards::-webkit-scrollbar-thumb{ background:var(--atrack); border-radius:3px; }
+html.aurora .emp-card{ width:100% !important; display:grid !important; grid-template-columns:auto 1fr auto; grid-template-areas:'ava name bars' 'ava title bars'; align-items:center; gap:1px 11px; text-align:left; padding:9px 11px !important; }
+html.aurora .emp-card .emp-card-top{ grid-area:ava; display:flex; margin:0; }
+html.aurora .emp-card .emp-mood{ display:none; }
+html.aurora .emp-card .emp-name{ grid-area:name; align-self:end; min-width:0; }
+html.aurora .emp-card .emp-title{ grid-area:title; align-self:start; }
+html.aurora .emp-card .emp-bars{ grid-area:bars; width:68px; flex:none; }
+html.aurora .emp-card .emp-traits{ display:none; }
+html.aurora .emp-card{
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:16px;
+  box-shadow:var(--ashadow), var(--ainset); padding:10px 12px; transition:transform .2s var(--spring), border-color .2s;
+}
+html.aurora .emp-card:hover{ transform:translateY(-2px); border-color:var(--ahair-2); }
+html.aurora .emp-ava{ border-radius:11px; color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.25); }
+html.aurora .emp-name{ color:var(--color-text); font-weight:600; }
+html.aurora .emp-title{ color:var(--color-text-dim); }
+html.aurora .emp-bar{ background:var(--atrack); border-radius:3px; }
+html.aurora .emp-bar-fill.energy{ background:var(--c-cash); }
+html.aurora .emp-bar-fill.happy{ background:var(--c-hype); }
+html.aurora .emp-trait.good{ color:var(--c-cash); border-color:color-mix(in srgb,var(--c-cash) 40%,transparent); background:color-mix(in srgb,var(--c-cash) 14%,transparent); }
+html.aurora .emp-trait.bad{ color:var(--c-runway); border-color:color-mix(in srgb,var(--c-runway) 40%,transparent); background:color-mix(in srgb,var(--c-runway) 14%,transparent); }
+html.aurora .team-pizza{ background:var(--achip); border:1px solid var(--ahair); color:var(--color-text); border-radius:999px; }
+html.aurora .team-pizza:hover{ background:var(--achip-2); }
+html.aurora .team-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+html.aurora .team-mood{ display:flex; align-items:center; gap:8px; }
+html.aurora .team-mood-emoji{ font-size:18px; }
+html.aurora .team-mood-txt{ display:flex; flex-direction:column; line-height:1.1; }
+html.aurora .team-mood-txt b{ color:var(--color-text); font-size:12px; font-weight:700; }
+html.aurora .team-mood-txt small{ color:var(--aink-mute); font-size:10.5px; }
+
+/* =====================================================================
+   ACTION PANEL  — floating glass dock with cat-buttons + launch hero
+   ===================================================================== */
+html.aurora .hud-action-panel{
+  background:transparent !important; border:none !important; backdrop-filter:none !important;
+  box-shadow:none !important; /* kill the legacy full-width inset/white line across the bottom */
+  padding:0 0 20px !important; left:0 !important; right:0 !important;
+  display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:flex-end !important; gap:12px !important;
+}
+html.aurora .hud-action-panel .dev-progress-card,
+html.aurora #dev-progress-card{ position:fixed !important; left:50% !important; right:auto !important; transform:translateX(-50%) !important; bottom:158px !important; top:auto !important; margin:0 !important; width:min(560px,86vw) !important; z-index:48 !important; }
+html.aurora .action-hints{ display:flex; flex-wrap:wrap; justify-content:center; }
+html.aurora .action-panel-label{ display:none; }
+html.aurora .action-bar{
+  display:flex; align-items:center; gap:6px; padding:9px !important; width:auto !important; max-width:none; margin:0 auto;
+  background:var(--apanel) !important; border:1px solid var(--ahair) !important; border-radius:24px !important;
+  box-shadow:var(--ashadow), var(--ainset) !important; -webkit-backdrop-filter:saturate(1.4) blur(22px); backdrop-filter:saturate(1.4) blur(22px);
+}
+html.aurora .cat-btn{
+  display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 20px !important;
+  border-radius:18px; background:transparent !important; border:none !important; color:var(--aink-mute) !important;
+  box-shadow:none !important; -webkit-backdrop-filter:none; backdrop-filter:none;
+  transition:color .2s, background .2s, transform .2s var(--spring); position:relative; cursor:pointer;
+}
+html.aurora .cat-btn .cat-icon svg{ width:23px; height:23px; fill:none; stroke:currentColor !important; }
+html.aurora .cat-btn .cat-label{ font-size:11.5px; font-weight:600; letter-spacing:.2px; color:inherit !important; }
+html.aurora .cat-btn:hover{ color:var(--color-text-dim) !important; background:var(--achip) !important; transform:translateY(-1px); box-shadow:none !important; }
+html.aurora .cat-btn.active{ color:var(--color-text) !important; background:var(--achip) !important; border:none !important; }
+html.aurora .cat-btn.active .cat-label{ color:var(--color-text) !important; }
+html.aurora .cat-btn.active .cat-icon svg{ stroke:var(--c-users) !important; }
+html.aurora .cat-btn.active::after{ content:""; position:absolute; top:7px; right:18px; width:6px; height:6px; border-radius:50%; background:var(--c-hype); box-shadow:0 0 8px var(--c-hype); }
+
+/* LAUNCH hero */
+html.aurora .launch-hero, html.aurora #btn-launch-product{
+  flex-direction:row; gap:11px; align-self:stretch; padding:0 30px; margin:0 4px;
+  border-radius:999px; background:var(--launch) !important; color:#fff !important; border:none;
+  box-shadow:0 14px 30px -10px rgba(255,90,140,.55), var(--ainset); transition:transform .24s var(--spring), box-shadow .24s;
+}
+html.aurora .launch-hero .action-icon svg{ width:26px; height:26px; }
+html.aurora .launch-hero .action-label{ font-size:14px; font-weight:800; letter-spacing:.6px; }
+html.aurora .launch-hero .action-cd{ display:none; }
+html.aurora .launch-hero:hover{ transform:translateY(-3px); box-shadow:0 20px 40px -10px rgba(255,90,140,.7); }
+html.aurora .launch-hero:disabled{ filter:saturate(.5) brightness(.8); opacity:.7; }
+
+/* action hints + sheet */
+html.aurora .action-hints{ color:var(--aink-mute); }
+html.aurora .action-hints span{ background:var(--achip); border-radius:999px; padding:3px 9px; border:1px solid var(--ahair); }
+html.aurora .action-sheet{
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:22px;
+  box-shadow:var(--ashadow), var(--ainset); padding:14px;
+}
+html.aurora .action-sheet-head{ color:var(--color-text); font-weight:700; }
+html.aurora .action-sheet-head button{ background:var(--achip); border:none; color:var(--color-text); border-radius:10px; }
+html.aurora .action-btn{
+  background:var(--achip) !important; border:1px solid var(--ahair) !important; color:var(--color-text) !important;
+  border-radius:16px; box-shadow:none !important; transition:transform .18s var(--spring), background .2s, border-color .2s;
+}
+html.aurora .action-btn .cat-icon svg, html.aurora .action-btn .action-icon svg{ fill:none; stroke:currentColor !important; }
+html.aurora .action-btn .action-icon svg{ width:24px; height:24px; }
+html.aurora .action-btn:hover{ transform:translateY(-3px); background:var(--achip-2) !important; box-shadow:var(--ashadow); }
+html.aurora .action-btn .action-label{ color:var(--color-text); }
+html.aurora .action-btn .action-cd{ color:var(--aink-mute); }
+html.aurora .action-cyan{ border-color:color-mix(in srgb,var(--c-users) 40%,transparent) !important; }
+html.aurora .action-cyan .action-icon{ color:var(--c-users); }
+html.aurora .action-amber{ border-color:color-mix(in srgb,var(--c-runway) 40%,transparent) !important; }
+html.aurora .action-amber .action-icon{ color:var(--c-runway); }
+html.aurora .action-magenta{ border-color:color-mix(in srgb,var(--c-hype) 40%,transparent) !important; }
+html.aurora .action-magenta .action-icon{ color:var(--c-hype); }
+
+/* dev progress card + mini chips */
+html.aurora .dev-progress-card{ background:var(--apanel); border:1px solid var(--ahair); border-radius:18px; box-shadow:var(--ashadow), var(--ainset); }
+html.aurora .dev-progress-title{ color:var(--color-text); }
+html.aurora .meter-track, html.aurora .dev-progress-card .meter-track{ background:var(--atrack); }
+html.aurora .dev-fill, html.aurora .meter-fill.dev-fill{ background:linear-gradient(90deg,var(--c-users),var(--c-trust)); }
+html.aurora .mini-chip{ background:var(--achip); border:1px solid var(--ahair); color:var(--color-text-dim); border-radius:999px; }
+html.aurora .mini-chip:hover{ background:var(--achip-2); color:var(--color-text); }
+html.aurora .mini-chip.mini-chip-active{ background:var(--c-users); color:#fff; border-color:transparent; }
+html.aurora .mini-chip-hot{ border-color:color-mix(in srgb,var(--c-hype) 45%,transparent); color:var(--c-hype); }
+
+/* =====================================================================
+   THE FEED (right rail)
+   ===================================================================== */
+html.aurora .social-feed-wrap{
+  right:18px; top:96px; bottom:120px; width:330px; max-width:34vw;
+  /* drop the legacy hardcoded-dark outer frame; the themed title + list below
+     ARE the frame, so it tracks the dark/light theme (bright in light mode) */
+  background:transparent !important; border:none !important; box-shadow:none !important;
+}
+html.aurora .social-feed-title{
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--font-sans); font-size:11px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
+  color:var(--color-text-dim); border:none; padding:14px 16px 10px;
+  background:var(--apanel); border:1px solid var(--ahair); border-bottom:none;
+  border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow:0 -2px 0 0 transparent;
+}
+html.aurora .social-feed{
+  gap:9px; overflow-y:auto; padding:10px 12px 14px;
+  background:var(--apanel); border:1px solid var(--ahair); border-top:none;
+  border-radius:0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow:var(--ashadow), var(--ainset), 0 0 40px -16px color-mix(in srgb,var(--c-hype) 30%,transparent);
+}
+html.aurora .social-feed::-webkit-scrollbar{ width:7px; }
+html.aurora .social-feed::-webkit-scrollbar-thumb{ background:var(--atrack); border-radius:4px; }
+html.aurora .feed-item{
+  background:var(--apanel-2) !important; border:1px solid var(--ahair) !important; border-left-width:1px !important;
+  border-radius:14px; padding:12px 14px; box-shadow:none; color:var(--color-text-dim);
+}
+html.aurora .feed-item.fi-tone-good, html.aurora .feed-news.fi-tone-good{ border-left:3px solid var(--c-cash) !important; }
+html.aurora .feed-item.fi-tone-bad{ border-left:3px solid var(--color-error) !important; }
+html.aurora .feed-src{ font-size:10.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--c-users); margin-bottom:5px; }
+html.aurora .feed-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+html.aurora .feed-av{ width:28px; height:28px; border-radius:9px; display:grid; place-items:center; font-size:11px; font-weight:800; color:#fff; background:var(--c-users); }
+html.aurora .feed-handle{ font-size:13px; font-weight:700; color:var(--color-text); }
+html.aurora .feed-dot{ width:3px; height:3px; border-radius:50%; background:var(--aink-mute); }
+html.aurora .feed-time{ font-size:11px; color:var(--aink-mute); }
+html.aurora .feed-text{ font-size:13px; line-height:1.45; color:var(--color-text-dim); }
+html.aurora .feed-delta{ font-size:12px; font-weight:700; margin-top:7px; }
+html.aurora .feed-delta.good{ color:var(--c-cash); }
+html.aurora .feed-delta.bad{ color:var(--color-error); }
+html.aurora .feed-delta.neutral{ color:var(--aink-mute); }
+
+/* news ticker + market trend */
+/* news ticker: redundant with the feed + collides with milestone banner — hidden for clarity */
+html.aurora .news-ticker-wrap{ display:none !important; }
+html.aurora .market-trend{ order:2; }
+html.aurora .news-ticker{ color:var(--aink-mute); }
+html.aurora .market-trend{
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:14px;
+  box-shadow:var(--ashadow), var(--ainset); color:var(--color-text);
+}
+html.aurora .market-trend-tag{ color:var(--c-runway); }
+html.aurora .market-trend-label{ color:var(--color-text); }
+
+/* =====================================================================
+   BUTTONS
+   ===================================================================== */
+html.aurora .btn{ font-family:var(--font-sans); border-radius:14px; font-weight:600; transition:transform .18s var(--spring), background .2s, box-shadow .2s, border-color .2s; }
+html.aurora .btn-primary{ background:var(--launch); color:#fff; border:none; box-shadow:0 12px 26px -12px rgba(255,90,140,.55); }
+html.aurora .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 18px 34px -12px rgba(255,90,140,.65); }
+html.aurora .btn-ghost{ background:var(--achip); color:var(--color-text); border:1px solid var(--ahair); }
+html.aurora .btn-ghost:hover{ background:var(--achip-2); transform:translateY(-1px); }
+html.aurora .btn-large{ border-radius:16px; }
+html.aurora .accent-cyan{ color:var(--color-cyan); }
+html.aurora .accent-magenta{ color:var(--color-magenta); }
+html.aurora .accent-amber{ color:var(--color-amber); }
+html.aurora .accent-error{ color:var(--color-error); }
+
+/* =====================================================================
+   MODALS
+   ===================================================================== */
+html.aurora .modal{ background:rgba(6,7,11,.6); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+html.aurora .modal-content{
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:var(--radius-lg);
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.8), var(--ainset),
+    0 0 60px -22px color-mix(in srgb,var(--c-users) 30%,transparent); color:var(--color-text);
+}
+html.aurora .modal-header h2{ color:var(--color-text); font-weight:700; letter-spacing:-.3px; }
+html.aurora .modal-note{ color:var(--color-text-dim); }
+html.aurora .modal-footer{ border-top:1px solid var(--ahair); }
+
+/* generic cards used inside modals */
+html.aurora .candidate-card, html.aurora .build-card, html.aurora .product-ops-card,
+html.aurora .loan-card, html.aurora .research-card, html.aurora .decision-option,
+html.aurora .peddler-card{
+  background:var(--apanel-2); border:1px solid var(--ahair); border-radius:16px;
+  color:var(--color-text); box-shadow:none; transition:transform .18s var(--spring), border-color .2s, background .2s;
+}
+html.aurora .candidate-card:hover, html.aurora .build-card:hover, html.aurora .decision-option:hover,
+html.aurora .loan-card:hover, html.aurora .research-card:hover{
+  transform:translateY(-2px); border-color:color-mix(in srgb,var(--c-users) 45%,transparent); background:var(--color-surface2);
+}
+html.aurora .build-card.build-locked{ opacity:.5; }
+html.aurora .candidate-name, html.aurora .build-info b, html.aurora .product-ops-title{ color:var(--color-text); }
+html.aurora .build-icon, html.aurora .candidate-card .candidate-ava{ color:var(--color-text); }
+
+/* buzzwords (VC pitch) */
+html.aurora .buzzword{
+  background:var(--achip); border:1px solid var(--ahair); color:var(--color-text); border-radius:12px;
+  transition:transform .15s var(--spring), background .2s, border-color .2s;
+}
+html.aurora .buzzword:hover{ background:var(--achip-2); }
+html.aurora .buzzword.selected{ background:color-mix(in srgb,var(--c-users) 22%,transparent); border-color:var(--c-users); color:var(--color-text); }
+html.aurora .pitch-preview{ background:var(--achip); border:1px solid var(--ahair); border-radius:12px; color:var(--color-text-dim); }
+html.aurora .pitch-timer-bar, html.aurora .firefight-timer-bar{ background:var(--launch); }
+html.aurora .pitch-timer-bar-track, html.aurora .firefight-timer-track{ background:var(--atrack); }
+
+/* product health pips */
+html.aurora .product-health.good{ color:var(--c-cash); }
+html.aurora .product-health.warn{ color:var(--c-runway); }
+html.aurora .product-health.bad{ color:var(--color-error); }
+
+/* =====================================================================
+   MENU / LOADING / WIN / LOSE / PAUSE SCREENS
+   ===================================================================== */
+html.aurora .screen{ background:var(--color-bg); }
+html.aurora .menu-bg-grid{
+  background-image:
+    linear-gradient(rgba(91,157,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(91,157,255,.05) 1px, transparent 1px);
+}
+html.aurora .logo-title, html.aurora .screen-title, html.aurora .game-over-title, html.aurora .win-title{ color:var(--color-text); }
+html.aurora .logo-tag, html.aurora .win-tag, html.aurora .game-over-tag{ color:var(--color-text-dim); border:1px solid var(--ahair); background:var(--achip); border-radius:999px; }
+html.aurora .logo-subtitle, html.aurora .menu-description, html.aurora .pause-sub, html.aurora .game-over-sub, html.aurora .win-sub{ color:var(--color-text-dim); }
+html.aurora .company-name-input{ background:var(--achip); border:1px solid var(--ahair); color:var(--color-text); border-radius:12px; }
+html.aurora .company-name-input:focus{ border-color:var(--c-users); outline:none; box-shadow:0 0 0 3px color-mix(in srgb,var(--c-users) 25%,transparent); }
+html.aurora .htp-card, html.aurora .htp-meter-info, html.aurora .pause-content, html.aurora .game-over-stats, html.aurora .win-stats, html.aurora .menu-controls-hint span, html.aurora .menu-content > .founder-setup{
+  background:var(--apanel); border:1px solid var(--ahair); border-radius:var(--radius-lg); box-shadow:var(--ashadow), var(--ainset); color:var(--color-text);
+}
+html.aurora .htp-card h3{ color:var(--color-text); }
+html.aurora .htp-card p, html.aurora .htp-meter-info p{ color:var(--color-text-dim); }
+html.aurora .htp-icon{ background:color-mix(in srgb,var(--c-users) 18%,transparent); color:var(--c-users); border-radius:12px; }
+html.aurora .loading-logo{ color:var(--color-text); }
+html.aurora .loading-bar-container{ background:var(--atrack); }
+html.aurora .loading-bar{ background:var(--launch); }
+html.aurora .loading-status, html.aurora .loading-sub{ color:var(--color-text-dim); }
+html.aurora .pause-content h2{ color:var(--color-text); }
+
+/* pause button + toasts + chyron */
+html.aurora .hud-pause-btn{ background:var(--apanel); border:1px solid var(--ahair); color:var(--color-text); border-radius:12px; box-shadow:var(--ashadow); }
+html.aurora .hud-pause-btn:hover{ background:var(--achip-2); }
+html.aurora .toast{ background:var(--apanel); border:1px solid var(--ahair); color:var(--color-text); border-radius:14px; box-shadow:var(--ashadow); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); }
+html.aurora .central-alert{ background:var(--apanel); border:1px solid color-mix(in srgb,var(--color-error) 45%,var(--ahair)); color:var(--color-text); border-radius:16px; box-shadow:var(--ashadow); }
+html.aurora .news-chyron{ background:linear-gradient(90deg,#1a0d12,#2a0f1a); color:#fff; border-top:2px solid var(--color-error); }
+
+/* onboarding card */
+html.aurora .onboarding-card{ background:var(--apanel); border:1px solid var(--ahair); border-radius:var(--radius-lg); box-shadow:var(--ashadow), var(--ainset), 0 0 36px -16px color-mix(in srgb,var(--c-trust) 35%,transparent); color:var(--color-text); }
+html.aurora .onboarding-kicker{ color:var(--c-trust); }
+html.aurora .onboarding-title{ color:var(--color-text); }
+html.aurora .onboarding-next, html.aurora .onboarding-steps{ color:var(--color-text-dim); }
+
+@media (prefers-reduced-motion:reduce){ html.aurora *{ animation-duration:.001ms !important; } }
+
+/* =====================================================================
+   STORY FEED (.fi cards) + extra modals introduced by the legacy tail
+   ===================================================================== */
+html.aurora .feed-item.fi{ background:var(--apanel-2) !important; border:1px solid var(--ahair) !important; color:var(--color-text-dim); box-shadow:none !important; border-radius:14px; }
+html.aurora .fi-prim{ color:var(--color-text) !important; font-weight:700; }
+html.aurora .fi-text{ color:var(--color-text-dim) !important; }
+html.aurora .fi-sec, html.aurora .fi-meta{ color:var(--aink-mute) !important; }
+html.aurora .fi-delta{ background:var(--achip) !important; color:var(--color-text-dim) !important; border-radius:999px; }
+html.aurora .fi-delta.pos{ color:var(--c-cash) !important; background:color-mix(in srgb,var(--c-cash) 16%,transparent) !important; }
+html.aurora .fi-delta.neg{ color:var(--color-error) !important; background:color-mix(in srgb,var(--color-error) 16%,transparent) !important; }
+html.aurora .feed-item.fi.fi-tone-pos{ background:linear-gradient(180deg, color-mix(in srgb,var(--c-cash) 16%,transparent), var(--apanel-2) 62%) !important; border-left:3px solid var(--c-cash) !important; }
+html.aurora .feed-item.fi.fi-tone-neg{ background:linear-gradient(180deg, color-mix(in srgb,var(--color-error) 16%,transparent), var(--apanel-2) 62%) !important; border-left:3px solid var(--color-error) !important; }
+html.aurora .feed-item.fi.fi-tone-chaos{ background:linear-gradient(180deg, color-mix(in srgb,var(--c-runway) 18%,transparent), var(--apanel-2) 62%) !important; border-left:3px solid var(--c-runway) !important; }
+html.aurora .fi-cta{ background:color-mix(in srgb,var(--c-users) 22%,transparent) !important; border:1px solid color-mix(in srgb,var(--c-users) 45%,transparent) !important; color:#cdd8ff !important; border-radius:999px !important; }
+html.aurora .fi-cta:hover{ background:color-mix(in srgb,var(--c-users) 36%,transparent) !important; }
+html.aurora .build-modal-content, html.aurora .proposal-modal-content{ background:var(--apanel) !important; border:1px solid var(--ahair) !important; color:var(--color-text); }
+html.aurora .build-modal-content .build-card{ background:var(--apanel-2) !important; border-color:var(--ahair) !important; }
+html.aurora .build-tier{ background:var(--achip) !important; border-color:var(--ahair) !important; }
+html.aurora .build-tier.is-here{ border-color:color-mix(in srgb,var(--c-users) 50%,transparent) !important; background:color-mix(in srgb,var(--c-users) 14%,transparent) !important; }
+html.aurora .prop-tag{ color:var(--c-users); background:color-mix(in srgb,var(--c-users) 18%,transparent); border-color:color-mix(in srgb,var(--c-users) 40%,transparent); }
+html.aurora .onboarding-card{ background:var(--apanel) !important; border:1px solid var(--ahair) !important; }
+html.aurora .stat-chart .sc-cur, html.aurora .stat-chart .sc-name{ color:var(--color-text); }

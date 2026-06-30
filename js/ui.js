@@ -2427,27 +2427,28 @@ function wireStatClicks() {
     if (el) { el.style.cursor = 'pointer'; el.title = 'Click for chart + projection'; el.addEventListener('click', () => openStatChart(key)); }
   }
 }
-function sparklineSVG(data, color) {
-  const W = 264, H = 72, pad = 8;
+function sparklineSVG(data, color, projValue) {
+  const W = 440, H = 150, pad = 12;
   if (!data || data.length < 2) return '<div class="sc-empty">gathering data… give it a few seconds</div>';
-  const k = Math.min(8, data.length), recent = data.slice(-k);
-  const slope = (recent[recent.length - 1] - recent[0]) / ((k - 1) || 1);
-  const proj = data[data.length - 1] + slope * 5;
+  const proj = (projValue == null) ? data[data.length - 1] : projValue;
   const vals = data.concat([proj]);
   const min = Math.min(...vals), max = Math.max(...vals), span = (max - min) || 1;
-  const histW = (W - 2 * pad) * 0.74, projW = (W - 2 * pad) * 0.26, n = data.length;
+  const histW = (W - 2 * pad) * 0.58, projW = (W - 2 * pad) * 0.42, n = data.length;
   const hx = i => pad + (n === 1 ? 0 : (i / (n - 1)) * histW);
   const yv = v => H - pad - ((v - min) / span) * (H - 2 * pad);
   const pts = data.map((v, i) => hx(i).toFixed(1) + ',' + yv(v).toFixed(1)).join(' ');
   const lastX = hx(n - 1), lastY = yv(data[n - 1]);
-  const projX = pad + histW + projW, projY = yv(proj);
-  const area = pts + ' ' + lastX.toFixed(1) + ',' + (H - pad).toFixed(1) + ' ' + pad + ',' + (H - pad).toFixed(1);
+  const divX = pad + histW, projX = pad + histW + projW, projY = yv(proj), baseY = (H - pad).toFixed(1);
+  const area = pts + ' ' + lastX.toFixed(1) + ',' + baseY + ' ' + pad + ',' + baseY;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none">
+    <line x1="${divX.toFixed(1)}" y1="${pad}" x2="${divX.toFixed(1)}" y2="${baseY}" stroke="rgba(255,255,255,.16)" stroke-width="1" stroke-dasharray="2 3"/>
     <polyline points="${area}" fill="${color}22" stroke="none"/>
-    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
-    <line x1="${lastX.toFixed(1)}" y1="${lastY.toFixed(1)}" x2="${projX.toFixed(1)}" y2="${projY.toFixed(1)}" stroke="${color}" stroke-width="2" stroke-dasharray="3 3" opacity=".75"/>
-    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="${color}"/>
-    <circle cx="${projX.toFixed(1)}" cy="${projY.toFixed(1)}" r="2.6" fill="none" stroke="${color}" stroke-width="1.5"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linejoin="round"/>
+    <line x1="${lastX.toFixed(1)}" y1="${lastY.toFixed(1)}" x2="${projX.toFixed(1)}" y2="${projY.toFixed(1)}" stroke="${color}" stroke-width="2.4" stroke-dasharray="5 4" opacity=".85"/>
+    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3.6" fill="${color}"/>
+    <circle cx="${projX.toFixed(1)}" cy="${projY.toFixed(1)}" r="3.4" fill="none" stroke="${color}" stroke-width="1.8"/>
+    <text x="${divX.toFixed(1)}" y="${(H-2).toFixed(1)}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.4)">now</text>
+    <text x="${(projX-2).toFixed(1)}" y="${(H-2).toFixed(1)}" text-anchor="end" font-size="9" fill="rgba(255,255,255,.4)">+30d</text>
   </svg>`;
 }
 /** Open the dark chart popover for a resource key. Exported for tests. */
@@ -2458,21 +2459,24 @@ export function openStatChart(key) {
   if (typeof document === 'undefined') return;
   const old = document.getElementById('stat-chart-modal'); if (old) old.remove();
   const modal = document.createElement('div'); modal.id = 'stat-chart-modal'; modal.className = 'modal'; document.body.appendChild(modal);
-  let proj = 'Gathering data…', dirCls = '';
+  let proj = 'Gathering data…', dirCls = '', proj30 = null;
   if (hist.length >= 3) {
-    const k = Math.min(8, hist.length), r = hist.slice(-k);
-    const slope = (r[r.length - 1] - r[0]) / ((k - 1) || 1);
-    const pv = Math.max(0, hist[hist.length - 1] + slope * 6);
+    const k = Math.min(16, hist.length), r = hist.slice(-k);
+    const slope = (r[r.length - 1] - r[0]) / ((k - 1) || 1);   // per ~1.2s sample
+    // 1 game-day ~ 3s; sampled every 1.2s => ~2.5 samples/day => 75 samples over 30 days
+    let pv = hist[hist.length - 1] + slope * 75;
+    pv = (key === 'trust' || key === 'burnout') ? Math.max(0, Math.min(100, pv)) : Math.max(0, pv);
+    proj30 = pv;
     const eps = (Math.max(...hist) - Math.min(...hist)) * 0.02;
     const dir = slope > eps ? 'rising' : slope < -eps ? 'falling' : 'holding steady';
     dirCls = slope > eps ? 'up' : slope < -eps ? 'down' : '';
-    proj = `Trending ${dir} · projected ${meta.fmt(key === 'runway' ? Math.round(pv) : pv)}`;
+    proj = `Trending ${dir} · 30-day outlook ~ ${meta.fmt(key === 'runway' ? Math.round(pv) : pv)}`;
   }
   const cap = CAPTIONS[key][Math.floor(Math.random() * CAPTIONS[key].length)];
   modal.innerHTML = `<div class="modal-content stat-chart" style="--sc:${meta.color}">
     <button class="share-close" aria-label="Close">&times;</button>
     <div class="sc-head"><span class="sc-emoji">${meta.emoji}</span><div><div class="sc-name">${meta.name}</div><div class="sc-cur">${meta.fmt(cur)}</div></div></div>
-    <div class="sc-chart">${sparklineSVG(hist, meta.color)}</div>
+    <div class="sc-chart">${sparklineSVG(hist, meta.color, proj30)}</div>
     <div class="sc-proj ${dirCls}">${proj}</div>
     <div class="sc-cap">“${cap}”</div>
   </div>`;

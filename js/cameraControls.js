@@ -153,7 +153,7 @@ export class CameraControls {
     // Panning detaches the camera from the founder until you press F to recenter.
     const f  = (this._keys.w ? 1 : 0) - (this._keys.s ? 1 : 0);
     const rt = (this._keys.d ? 1 : 0) - (this._keys.a ? 1 : 0);
-    if (f || rt) {
+    if ((f || rt) && !this.follow) {
       const panSpeed = 9 * dt * (this.radius / 13);
       const st = Math.sin(this.theta), ct = Math.cos(this.theta);
       this.target.x += (-st * f + ct * rt) * panSpeed;
@@ -161,7 +161,7 @@ export class CameraControls {
       const b = this.bounds;
       this.target.x = Math.max(b.minX, Math.min(b.maxX, this.target.x));
       this.target.z = Math.max(b.minZ, Math.min(b.maxZ, this.target.z));
-      this.follow = false;
+      /* camera stays attached to the player */
     }
 
     // Apply spring damping to velocities

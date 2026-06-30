@@ -1,13 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="aurora theme-dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#F5F6FB" />
+  <meta name="theme-color" content="#0a0b10" />
   <title>Startup Panic Simulator</title>
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/aurora.css" />
 </head>
 <body>
+
+  <!-- AURORA ICON SPRITE -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="ic-cash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></symbol>
+    <symbol id="ic-runway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12.5" r="8"/><path d="M12 8v4.5l3 1.8"/><path d="M9 2.5h6"/></symbol>
+    <symbol id="ic-hype" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.6 2.4 2.2 3.4 3.2 4.8C16.6 9.6 17 11.2 17 13a5 5 0 0 1-10 0c0-1.8.7-3.2 1.8-4.3C9.6 9.8 11 9.4 11 7.5c1 .8 1 2 .5 3"/></symbol>
+    <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><path d="M16.5 5.5a3 3 0 0 1 0 6M18 14.8c2 .6 3.4 2.2 3.9 4.7"/></symbol>
+    <symbol id="ic-burnout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="16" height="8" rx="2.2"/><path d="M21 11v2"/><rect x="5" y="10.4" width="4.2" height="3.2" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-trust" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.7-3.2 7.8-7.5 9-4.3-1.2-7.5-4.3-7.5-9V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+    <symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></symbol>
+    <symbol id="ic-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 5.5L19.5 10 14 12l-2 5.5L10 12 4.5 10 10 8.5z"/></symbol>
+  </defs></svg>
 
   <!-- 
        MAIN MENU SCREEN
@@ -122,41 +135,40 @@
    -->
   <div id="hud" class="hidden">
     <div id="objectives-panel" class="objectives-panel">
-      <div class="obj-head"><span aria-hidden="true">🎯</span> OBJECTIVES</div>
+      <div class="obj-head"><svg class="ic"><use href="#ic-target"/></svg> OBJECTIVES</div>
       <div id="objectives-list" class="objectives-list"></div>
     </div>
 
     <!-- Top Bar -->
     <div class="hud-top-bar">
-      <div class="hud-brand">STARTUP PANIC</div>
       <div class="hud-resource-grid" aria-label="Company resources">
         <div class="hud-resource hud-resource-cash">
-          <div class="hud-resource-icon" aria-hidden="true">💰</div>
+          <div class="hud-resource-icon" aria-hidden="true"><svg class="ic"><use href="#ic-cash"/></svg></div>
           <div class="resource-top"><span>Cash</span><strong id="cash-value">$30,000</strong></div>
           <div class="resource-sub"><span id="net-value" class="net-negative">-$50/s</span></div>
         </div>
         <div class="hud-resource hud-resource-runway">
-          <div class="hud-resource-icon" aria-hidden="true">⏳</div>
+          <div class="hud-resource-icon" aria-hidden="true"><svg class="ic"><use href="#ic-runway"/></svg></div>
           <div class="resource-top"><span>Runway</span><strong id="runway-days">∞</strong></div>
           <div class="resource-sub">company survival</div>
         </div>
         <div class="hud-resource hud-resource-hype">
-          <div class="hud-resource-icon" aria-hidden="true">🔥</div>
+          <div class="hud-resource-icon" aria-hidden="true"><svg class="ic"><use href="#ic-hype"/></svg></div>
           <div class="resource-top"><span>Hype</span><strong id="hype-value">10</strong></div>
           <div class="resource-track"><div id="hype-fill" class="meter-fill hype-fill"></div></div>
         </div>
         <div class="hud-resource hud-resource-users">
-          <div class="hud-resource-icon" aria-hidden="true">👥</div>
+          <div class="hud-resource-icon" aria-hidden="true"><svg class="ic"><use href="#ic-users"/></svg></div>
           <div class="resource-top"><span>Users</span><strong id="users-value">0</strong></div>
           <div class="resource-sub">product adoption</div>
         </div>
         <div class="hud-resource hud-resource-burnout">
-          <div class="hud-resource-icon" aria-hidden="true">🔋</div>
+          <div class="hud-resource-icon" aria-hidden="true"><svg class="ic"><use href="#ic-burnout"/></svg></div>
           <div class="resource-top"><span>Burnout</span><strong id="burnout-value">0%</strong></div>
           <div class="resource-sub">team health</div>
         </div>
         <div class="hud-resource hud-resource-trust">
-          <div class="hud-resource-icon" aria-hidden="true">🛡️</div>
+          <div class="hud-resource-icon" aria-hidden="true"><svg class="ic"><use href="#ic-trust"/></svg></div>
           <div class="resource-top"><span>Trust</span><strong id="trust-value">75%</strong></div>
           <div class="resource-sub">public confidence</div>
         </div>
@@ -173,10 +185,30 @@
           <span id="market-trend-label" class="market-trend-label">AI</span>
         </div>
       </div>
+      <!-- Top-right menu: pause / how-to-play / theme -->
+      <div id="hud-menu" class="hud-menu">
+        <button id="btn-hud-menu" class="hud-menu-btn" type="button" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div id="hud-menu-dropdown" class="hud-menu-dropdown hidden" role="menu">
+          <button id="menu-pause" class="hud-menu-item" type="button" role="menuitem">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="3.5" height="14" rx="1.2"/><rect x="14.5" y="5" width="3.5" height="14" rx="1.2"/></svg>
+            <span>Pause</span>
+          </button>
+          <button id="menu-options" class="hud-menu-item" type="button" role="menuitem">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.5-2.8 4"/><path d="M12 17.5h.01"/></svg>
+            <span>How to Play</span>
+          </button>
+          <button id="menu-theme" class="hud-menu-item" type="button" role="menuitem">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5 5l1.6 1.6M17.4 17.4 19 19M19 5l-1.6 1.6M6.6 17.4 5 19"/></svg>
+            <span id="menu-theme-label">Light mode</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div id="milestone-banner" class="milestone-banner hidden">
-      <span class="mb-emoji" aria-hidden="true">🎉</span>
+      <span class="mb-emoji" aria-hidden="true"><svg class="ic"><use href="#ic-spark"/></svg></span>
       <span class="mb-text"><b>NEW MILESTONE:</b> <span id="milestone-text">10K users reached!</span></span>
       <button id="milestone-view" class="mb-view" type="button">View</button>
     </div>
@@ -335,9 +367,6 @@
 
     <!-- Notification Toast -->
     <div id="toast-container" class="toast-container"></div>
-
-    <!-- Pause Button -->
-    <button id="btn-pause" class="hud-pause-btn">PAUSE</button>
   </div>
 
   <!-- 
