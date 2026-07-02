@@ -260,10 +260,10 @@
           <div id="dev-team-power" class="dev-progress-sub">team speed 0.0x</div>
         </div>
         <div class="dev-tactics">
-          <button class="mini-chip" data-dev-mode="balanced">Balanced</button>
-          <button class="mini-chip" data-dev-mode="fast">Fast</button>
-          <button class="mini-chip" data-dev-mode="polish">Polish</button>
-          <button id="btn-crunch-sprint" class="mini-chip mini-chip-hot">Sprint <span id="cd-crunch">READY</span></button>
+          <button class="mini-chip" data-dev-mode="balanced">🧘 Balanced</button>
+          <button class="mini-chip" data-dev-mode="fast">⚡ Fast</button>
+          <button class="mini-chip" data-dev-mode="polish">💎 Polish</button>
+          <button id="btn-crunch-sprint" class="mini-chip mini-chip-hot">🔥 Sprint <span id="cd-crunch">READY</span></button>
         </div>
       </div>
       <div class="action-bar">
@@ -642,6 +642,17 @@
 
   <!-- Load Three.js globally, then load the game module -->
   <script src="js/lib/three.min.js"></script>
+  <!-- Post-processing (r129 examples/js, global-style) for the bloom pass that
+       makes the emissive neon signs / screens actually glow. Order matters:
+       shaders and EffectComposer (which defines THREE.Pass) must load before the
+       passes that extend them. -->
+  <script src="js/lib/postprocessing/CopyShader.js"></script>
+  <script src="js/lib/postprocessing/LuminosityHighPassShader.js"></script>
+  <script src="js/lib/postprocessing/EffectComposer.js"></script>
+  <script src="js/lib/postprocessing/RenderPass.js"></script>
+  <script src="js/lib/postprocessing/ShaderPass.js"></script>
+  <script src="js/lib/postprocessing/MaskPass.js"></script>
+  <script src="js/lib/postprocessing/UnrealBloomPass.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

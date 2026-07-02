@@ -17,22 +17,45 @@ const CAMERA_LOOK  = { x: 0, y: 0, z: 0 };
 // `envFill` if the scene looks blown out; raise them if it looks flat/dark.
 // `physicallyCorrect` switches point lights (fill + fire) to real inverse-square
 // falloff so they stop flooding the room with flat light.
+//
+// The look we're chasing is the warm, saturated, high-contrast "SaaS-pop" of the
+// key art: a strong golden key light, deep coloured shadows (orange<->teal
+// separation), and neon pink/cyan spilling off the walls. The two biggest levers
+// away from the old "grey and flat" render are (1) a dark, *coloured* background
+// gradient instead of a light warm-grey flat fill  a light backdrop crushes
+// contrast  and (2) the neon accent lights that inject saturated colour.
 const LIGHTING = {
-  exposure:          1.0,        // was 1.2  tone-mapping exposure
+  exposure:          1.18,       // filmic exposure  a touch brighter for punch
   physicallyCorrect: true,       // inverse-square falloff for point lights
-  background:        0xbcb4a8,    // was 0xf4ece0  the bright cream backdrop was
-                                  // the main "everything's washed out" cause; a
-                                  // warm grey keeps the clean look but lets props read.
-  ambient:           0.22,        // flat fill  keep low so PBR contrast survives
-  directional:       1.25,        // key light
-  rim:               0.30,
-  fillCandela:       7.0,         // fill point light (candela, since physicallyCorrect)
-  hemi:              0.40,
-  envFill:           0.55,        // 0..1 luminance of the procedural env map (IBL)
+  // Background is a vertical gradient (makeGradientBackground). A deep indigo
+  // void over a warm plum floor makes the warmly-lit office pop instead of
+  // dissolving into flat grey the way the old light warm-grey fill did.
+  bgTop:             0x141020,    // deep indigo void (top of the gradient)
+  bgBottom:          0x3a2a30,    // warm plum-brown bounce (floor of the gradient)
+  fog:               0x241a26,    // mid tone so the horizon blends into the void
+  ambient:           0.16,        // low + COOL so shadows stay coloured, not muddy
+  directional:       2.15,        // strong warm KEY  the main contrast driver
+  rim:               0.55,        // vivid blue back-rim for crisp silhouettes
+  fillCandela:       9.0,         // warm desk-lamp fill (candela, physicallyCorrect)
+  hemi:              0.45,        // warm sky / cool ground -> orange-teal shadows
+  envFill:           0.5,         // 0..1 luminance of the procedural env map (IBL)
+  // Neon spill  coloured accent point lights that wash the walls the way the
+  // pink/cyan signs would if they cast light. This is what makes the room read
+  // "colourful" up close, and it's independent of any future bloom pass.
+  neonPink:          0xff2d78,
+  neonCyan:          0x22d3ff,
+  neonCandela:       7.5,
+  // Bloom (post-process). `threshold` keeps the glow on the bright emissive bits
+  // (neon signs, screens, the AI core) so the whole room doesn't fog up; raise it
+  // if too much blooms, lower it to catch dimmer emissives. `strength`/`radius`
+  // control how far/soft the glow spreads.
+  bloomStrength:     0.9,
+  bloomRadius:       0.55,
+  bloomThreshold:    0.78,
 };
 
 //  Module State 
-let scene, camera, renderer, composer;
+let scene, camera, renderer, composer, bloomPass;
 let ambientLight, directionalLight, rimLight;
 let fireLights = [];  // Dynamic point lights for active fire events
 
@@ -45,9 +68,14 @@ export function getFireLights() { return fireLights; }
 export function initScene(canvas) {
   //  Scene 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(LIGHTING.background);
-  // Subtle fog for depth (matches the backdrop so the horizon doesn't band).
-  scene.fog = new THREE.FogExp2(LIGHTING.background, 0.032);
+  // Coloured vertical gradient behind the diorama (deep indigo -> warm plum).
+  // A dark, saturated backdrop is the single biggest lift away from the old flat
+  // grey: it lets the warmly-lit office read with real contrast and pushes colour
+  // back into the frame.
+  scene.background = makeGradientBackground();
+  // Subtle fog for depth, tuned to a mid tone of the gradient so the horizon
+  // fades into the void without banding.
+  scene.fog = new THREE.FogExp2(LIGHTING.fog, 0.03);
 
   //  Camera 
   camera = new THREE.PerspectiveCamera(
@@ -84,6 +112,9 @@ export function initScene(canvas) {
   //  Image-based lighting (procedural env map  no HDRI fetch)
   setupEnvironment();
 
+  //  Post-processing (bloom) so the emissive neon actually glows
+  setupComposer();
+
   //  Resize Handling
   window.addEventListener('resize', onResize);
 
@@ -94,13 +125,17 @@ function setupLighting() {
   // Flat ambient is kept low now that the procedural environment map
   // (setupEnvironment) supplies most of the soft fill + reflections. A high
   // ambient term washes out PBR contrast, so this just lifts the deepest
-  // shadows rather than flattening everything.
-  ambientLight = new THREE.AmbientLight(0xfff2e0, LIGHTING.ambient);
+  // shadows rather than flattening everything. Tinted COOL so the fill in
+  // shadow reads teal against the warm key  the orange<->teal separation that
+  // keeps the render from going grey.
+  ambientLight = new THREE.AmbientLight(0xb9c7ff, LIGHTING.ambient);
   scene.add(ambientLight);
 
-  // Primary directional light  cool white, top-front
-  directionalLight = new THREE.DirectionalLight(0xffe6c2, LIGHTING.directional);
-  directionalLight.position.set(4, 10, 6);
+  // Primary directional KEY  warm golden, raking in low from the door side so
+  // props cast long, shaped shadows instead of being flatly top-lit. This is the
+  // main contrast driver, so it's much stronger than the old near-fill value.
+  directionalLight = new THREE.DirectionalLight(0xffd39a, LIGHTING.directional);
+  directionalLight.position.set(5, 8.5, 6.5);
   directionalLight.castShadow = true;
   directionalLight.shadow.mapSize.width  = 2048;
   directionalLight.shadow.mapSize.height = 2048;
@@ -117,21 +152,67 @@ function setupLighting() {
   directionalLight.shadow.normalBias    = 0.025;
   scene.add(directionalLight);
 
-  // Rim light  indigo from below-back to keep silhouettes crisp
-  rimLight = new THREE.DirectionalLight(0x4d6bff, LIGHTING.rim);
-  rimLight.position.set(-5, -2, -8);
+  // Rim light  vivid blue from below-back to keep silhouettes crisp and add a
+  // cool coloured edge that separates the characters from the warm interior.
+  rimLight = new THREE.DirectionalLight(0x3f6bff, LIGHTING.rim);
+  rimLight.position.set(-5, -1, -8);
   scene.add(rimLight);
 
   // Secondary fill  warm amber from side (suggests desk lamp / screen glow).
   // decay:2 = physically-correct inverse-square falloff, so it lights nearby
   // desks without flooding the whole room (intensity is candela now).
-  const fillLight = new THREE.PointLight(0xffb84d, LIGHTING.fillCandela, 22, 2);
+  const fillLight = new THREE.PointLight(0xffb04d, LIGHTING.fillCandela, 22, 2);
   fillLight.position.set(-3, 2, -2);
   scene.add(fillLight);
 
-  // Hemisphere sky/ground gradient (warm "sky", cooler warm-grey "ground").
-  const hemiLight = new THREE.HemisphereLight(0xfff4e6, 0xd9c3a3, LIGHTING.hemi);
+  // Hemisphere sky/ground gradient: warm "sky" over a COOL teal "ground" bounce.
+  // The cool ground term is deliberate  it tints the undersides and shadowed
+  // floor teal, reinforcing the orange<->teal separation instead of the old
+  // uniform warm-grey wash.
+  const hemiLight = new THREE.HemisphereLight(0xffe6c2, 0x24405e, LIGHTING.hemi);
   scene.add(hemiLight);
+
+  // Neon spill  saturated pink off the left wall, cyan off the right, at sign
+  // height. The emissive neon meshes can't cast light on their own (and there's
+  // no bloom pass yet), so these accent lights are what actually paint colour
+  // onto the room and props. Inverse-square + a short range keeps each colour
+  // local to its side of the office.
+  const pinkNeon = new THREE.PointLight(LIGHTING.neonPink, LIGHTING.neonCandela, 12, 2);
+  pinkNeon.position.set(-4.8, 3.2, -3.2);
+  scene.add(pinkNeon);
+
+  const cyanNeon = new THREE.PointLight(LIGHTING.neonCyan, LIGHTING.neonCandela, 12, 2);
+  cyanNeon.position.set(4.8, 3.2, -3.2);
+  scene.add(cyanNeon);
+}
+
+/**
+ * Vertical gradient backdrop as a CanvasTexture. Deep indigo void at the top
+ * fading to a warm plum-brown at the floor line  a dark, saturated background
+ * that makes the lit diorama pop (a light flat backdrop was the main reason the
+ * old render looked washed-out and grey).
+ */
+function makeGradientBackground() {
+  const canvas  = document.createElement('canvas');
+  canvas.width  = 16;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+
+  const top = new THREE.Color(LIGHTING.bgTop);
+  const bot = new THREE.Color(LIGHTING.bgBottom);
+  const hex = (c) => `rgb(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)})`;
+
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0.0, hex(top));
+  grad.addColorStop(0.62, hex(top.clone().lerp(bot, 0.55)));
+  grad.addColorStop(1.0, hex(bot));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.encoding    = THREE.sRGBEncoding;
+  tex.needsUpdate = true;
+  return tex;
 }
 
 /**
@@ -162,6 +243,43 @@ function setupEnvironment() {
   pmrem.dispose();
 }
 
+/**
+ * Bloom post-processing chain (EffectComposer -> RenderPass -> UnrealBloomPass).
+ *
+ * The emissive neon signs, monitors and AI core can't cast light or glow on their
+ * own; the bloom pass bleeds their bright pixels outward, which is what sells the
+ * "glowing neon" look of the key art. The threshold keeps the glow on the bright
+ * emissive bits so the whole warmly-lit room doesn't smear.
+ *
+ * The r129 post-processing scripts are loaded as globals in index.html; if they
+ * failed to load we quietly fall back to direct rendering (renderFrame() below).
+ */
+function setupComposer() {
+  if (typeof THREE.EffectComposer !== 'function' ||
+      typeof THREE.UnrealBloomPass  !== 'function' ||
+      typeof THREE.RenderPass       !== 'function') {
+    console.warn('[scene] Post-processing scripts unavailable  bloom disabled.');
+    composer = null;
+    return;
+  }
+
+  const size = new THREE.Vector2();
+  renderer.getSize(size);
+
+  composer = new THREE.EffectComposer(renderer);
+  composer.setPixelRatio(renderer.getPixelRatio());
+  composer.setSize(size.x, size.y);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+
+  bloomPass = new THREE.UnrealBloomPass(
+    new THREE.Vector2(size.x, size.y),
+    LIGHTING.bloomStrength,
+    LIGHTING.bloomRadius,
+    LIGHTING.bloomThreshold,
+  );
+  composer.addPass(bloomPass); // last pass -> EffectComposer renders it to screen
+}
+
 /** Warm gradient sky as an equirectangular CanvasTexture (no HDRI fetch). */
 function createGradientEnvironmentTexture() {
   const canvas = document.createElement('canvas');
@@ -173,15 +291,19 @@ function createGradientEnvironmentTexture() {
   // reflections + fill WITHOUT washing the scene out (the bug we just fixed).
   const f = LIGHTING.envFill;
   const lerp = (a, b, t) => Math.round(a + (b - a) * t);
-  // Scale a warm reference colour toward black by (1 - f).
-  const warm = (r, g, b) => `rgb(${lerp(0, r, f)},${lerp(0, g, f)},${lerp(0, b, f)})`;
+  // Scale a reference colour toward black by (1 - f).
+  const col = (r, g, b) => `rgb(${lerp(0, r, f)},${lerp(0, g, f)},${lerp(0, b, f)})`;
 
-  // Vertical zenith->ground gradient (warm; brightness driven by envFill).
+  // Vertical zenith->ground gradient. Warm, more saturated "sky" up top fading to
+  // a COOL teal ground bounce: glossy props (screens, desks, the AI core) now get
+  // warm reflections on their tops and cool ones underneath, which reads far
+  // richer than the old uniform warm-grey and matches the light rig's warm<->cool
+  // separation.
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0.00, warm(254, 249, 240)); // zenith  warm key
-  grad.addColorStop(0.42, warm(244, 236, 220)); // upper band
-  grad.addColorStop(0.55, warm(233, 220, 198)); // horizon  warm cream
-  grad.addColorStop(1.00, warm(150, 136, 112)); // ground  warm grey bounce
+  grad.addColorStop(0.00, col(255, 236, 205)); // zenith  warm golden key
+  grad.addColorStop(0.42, col(250, 214, 176)); // upper band  warmer/saturated
+  grad.addColorStop(0.55, col(232, 190, 158)); // horizon  warm amber
+  grad.addColorStop(1.00, col(60,  92,  120)); // ground  cool teal bounce
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -253,11 +375,15 @@ function onResize() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  if (composer)  composer.setSize(w, h);
+  if (bloomPass) bloomPass.setSize(w, h);
 }
 
 /**
- * Render one frame.
+ * Render one frame. Routes through the bloom composer when available, otherwise
+ * falls back to a plain renderer pass.
  */
 export function renderFrame() {
-  renderer.render(scene, camera);
+  if (composer) composer.render();
+  else          renderer.render(scene, camera);
 }

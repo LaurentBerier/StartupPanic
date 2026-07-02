@@ -16,7 +16,7 @@
 import { initScene, getScene, getCamera, getRenderer, addFireLight, removeFireLight, updateFireLights, renderFrame } from './scene.js';
 import {
   OfficePlatform, OfficeFurniture, MercuryAICore, ServerFire, HypeConfetti,
-  DeskStation, ProductShowcase, PitchRoom, buildFacility, EmployeeCharacter, CHARACTER_PALETTE, makeCompanySign,
+  DeskStation, ProductShowcase, PitchRoom, buildFacility, EmployeeCharacter, CHARACTER_PALETTE, CHARACTER_STAND_Y, makeCompanySign,
   makeDeskMarker, DESK_SLOT_POSITIONS, SteamPuff,
 } from './gameObjects.js';
 import {
@@ -29,7 +29,7 @@ import {
   actionVersionPushProduct, actionResolvePRResponse, actionResolveClone, actionMarketingPost, getFounderDesk,
   actionResolvePoach, actionResolveMeme, actionResolveRegulator,
   actionPizzaParty, actionPromoteEmployee,
-  rollProposal, actionResolveProposal,
+  rollProposal, actionResolveProposal, peddlerProposal,
 } from './gameLogic.js';
 import {
   showScreen, hideScreen, initHUD, showHUD, hideHUD, updateHUD,
@@ -44,7 +44,8 @@ import {
 import { CameraControls } from './cameraControls.js';
 import { findPath } from './pathfind.js';
 import { initLevelLink } from './levelLoader.js';
-import { openTimingGame, openTapGame, openClickRush } from './minigames.js';
+import { openTimingGame, openTapGame, openClickRush, openSquashGame, openPourGame } from './minigames.js';
+let _mktGameFlip = false, _prGameFlip = false;   // alternate minigame flavors run-to-run
 const PR_PHRASES = ['we hear you', 'lessons were learned', 'we take this seriously', 'a small number of users', 'out of an abundance of caution', 'your trust matters', 'this does not reflect our values', 'we have paused the feature', 'an independent review', 'effective immediately'];
 const PR_LOGS = ['Legal redlined the whole thing', 'PR: "can we blame a typo?"', 'Swapped "sorry" for "regret"', 'Added the word "journey"', 'CEO wants more synergy in it', 'Comms: "post it before the podcast"', 'Board: "is this lawsuit-proof?"', 'Added a sad-but-hopeful emoji', 'Reframed it as a "learning moment"', 'Final draft posted 4:59pm Friday'];
 import { updateTweens, Spring } from './tween.js';
@@ -54,8 +55,9 @@ import {
   disasterHeadline, showChyron, renderEndingScreen,
 } from './viral.js';
 import {
-  resetStory, tickStory, onStoryEvent, onStoryAction, pushProposalCard,
+  resetStory, tickStory, onStoryEvent, onStoryAction, pushProposalCard, pushMarketItem,
 } from './storyEngine.js';
+import { startMarketFeed } from './marketFeed.js';
 
 // THREE is loaded globally via <script src="js/lib/three.min.js">
 const THREE = window.THREE;
@@ -76,6 +78,14 @@ let pitchRoom;
 let showcase;
 let _lastMilestoneSeq = 0, _milestoneTimer = null;
 const _proposals = new Map();
+let marketFeedCtl = null;
+/** Register an openable offer/proposal and drop its card into the feed. */
+function pushOfferCard(prop) {
+  if (!prop) return;
+  if (_proposals.size >= 6) return; // don't let offers pile up unread
+  _proposals.set(prop.pid, prop);
+  pushProposalCard(prop);
+}
 let platform;
 let companySign = null;
 let voidParticles, dataStreams;
@@ -252,7 +262,7 @@ function startGame() {
 
   // Spawn the founder avatar (the walkable "you"  gold, with a plumbob)
   player = new EmployeeCharacter({ color: 0xFFD54A, walker: true });
-  player.setBasePosition(0, 0.22, 0.6); // start standing in the middle  walk to your chair
+  player.setBasePosition(0, CHARACTER_STAND_Y, 0.6); // start standing in the middle  walk to your chair
   scene.add(player.root);
   window._player = player; // debug access
 
@@ -334,24 +344,65 @@ function startGame() {
   if (_sheet) _sheet.querySelectorAll('.action-btn').forEach(b => b.addEventListener('click', _hideSheet));
   const _feedEl = document.getElementById('social-feed');
   if (_feedEl) _feedEl.addEventListener('click', (e) => {
-    const btn = e.target.closest && e.target.closest('.fi-cta'); if (!btn) return;
-    const prop = _proposals.get(btn.dataset.pid); if (!prop) return;
+    if (!e.target.closest) return;
+    if (e.target.closest('.fi-react')) return;   // reactions are handled by the story engine
+    // Clicking the CTA button OR anywhere on the offer card opens the proposal.
+    const btn  = e.target.closest('.fi-cta');
+    const card = e.target.closest('.feed-item.fi-offer') || (btn && btn.closest('.feed-item'));
+    const pid  = (btn && btn.dataset.pid) || (card && card.dataset.pid);
+    if (!pid) return;
+    const prop = _proposals.get(pid); if (!prop) return;
     state.paused = true;
     openProposalModal(state, prop, (accept) => {
       state.paused = false;
       const r = actionResolveProposal(state, prop, accept);
-      _proposals.delete(btn.dataset.pid);
-      const card = btn.closest('.feed-item'); if (card) { card.classList.add('fi-resolved'); btn.remove(); }
+      _proposals.delete(pid);
+      if (card) { card.classList.add('fi-resolved'); const row = card.querySelector('.fi-cta-row'); if (row) row.remove(); }
       if (r.spent) flashSpend({ cost: r.spent });
       showToast(r.outcome, r.hype >= 0 ? 'success' : 'warning', 4800);
     });
   });
+
+  // Reacting to the feed (like/repost/reply) gives a tiny hype drip with
+  // diminishing returns - doomscrolling is not a growth strategy.
+  if (!window._feedReactWired) {
+    window._feedReactWired = true;
+    window.addEventListener('feed-react', (e) => {
+      if (!state || state.gameOver || state.won) return;
+      state._feedReactBudget = state._feedReactBudget ?? 3;
+      if (state._feedReactBudget <= 0) {
+        if (Math.random() < 0.25) showToast('The algorithm has stopped caring about your likes (for now).', 'info', 2200);
+        return;
+      }
+      state._feedReactBudget--;
+      const gain = e.detail?.kind === 'repost' ? 0.8 : 0.5;
+      state.hype = Math.min(CONFIG.HYPE_MAX, state.hype + gain);
+      if (Math.random() < 0.18) {
+        const quips = [
+          'An intern liked your like. Synergy.',
+          'You reposted it. Your mom reposted your repost. Momentum.',
+          'Replied "this" - thought leadership achieved.',
+          'Engagement farmed. The crops are hype.',
+        ];
+        showToast(quips[Math.floor(Math.random() * quips.length)], 'info', 2400);
+      }
+    });
+  }
 
   // Reset the live feed; clear any sticky fire alert. In stealth the feed is
   // near-silent (nobody knows you exist yet)  it only roars to life on launch.
   // The story engine now owns the feed: a reactive, self-chaining narrative.
   fireAlertUp = false; feedTimer = 16; clearAlert();
   resetStory(state);
+
+  // Real market/tech headlines (RSS) laundered into parody & dripped into the feed.
+  if (marketFeedCtl) marketFeedCtl.stop();
+  marketFeedCtl = startMarketFeed(pushMarketItem, {
+    // World/market news exists regardless of your startup  flows even in stealth.
+    // Kept sparse (each headline brings its own crowd of reaction comments).
+    shouldEmit: () => isRunning && state && !state.paused,
+    intervalMs: 80000,
+  });
 
   isRunning   = true;
   lastTime    = performance.now();
@@ -365,6 +416,7 @@ function stopGame() {
   isRunning = false;
   if (animFrameId) cancelAnimationFrame(animFrameId);
   animFrameId = null;
+  if (marketFeedCtl) { marketFeedCtl.stop(); marketFeedCtl = null; }
 }
 
 function createDeskStation(desk) {
@@ -494,7 +546,7 @@ function gameLoop(timestamp) {
       state._proposalTimer -= dt;
       if (state._proposalTimer <= 0) {
         state._proposalTimer = 58 + Math.random() * 46;
-        if (_proposals.size < 4) { const _p = rollProposal(state); _proposals.set(_p.pid, _p); pushProposalCard(_p); }
+        if (_proposals.size < 4) pushOfferCard(rollProposal(state));
       }
     }
 
@@ -594,7 +646,11 @@ function processGameEvents(events) {
             const grade = score == null ? '' : ` (${['D', 'C', 'B', 'A', 'S'][Math.min(4, Math.floor(score * 5))]})`;
             showToast(`${r.response.label}${grade}: ${r.hypeDelta >= 0 ? '+' : ''}${r.hypeDelta} Hype, severity now ${r.pr.severity.toFixed(1)}x.`, r.hypeDelta >= 0 ? 'success' : 'warning', 3600);
           };
-          if (choice === 'apology') openClickRush({ title: 'Damage Control', color: '#FF9A1F', logs: PR_LOGS, logMaker: (m) => m, note: 'Tap each talking point fast. Get the statement out before the narrative hardens.', unit: 'lines on the record', duration: 10, targetHits: 9 }, resolve, () => { state.paused = false; });
+          if (choice === 'apology') {
+            _prGameFlip = !_prGameFlip;
+            if (_prGameFlip) openSquashGame({ title: 'Ratio the Bad Takes', color: '#FF9A1F', emoji: '😡', hitEmoji: '🧯', note: 'Squash every hot take before it trends. Escapees quote-tweet.', unit: 'takes contained', duration: 10, targetHits: 12 }, resolve, () => { state.paused = false; });
+            else openClickRush({ title: 'Damage Control', color: '#FF9A1F', logs: PR_LOGS, logMaker: (m) => m, note: 'Tap each talking point fast. Get the statement out before the narrative hardens.', unit: 'lines on the record', duration: 10, targetHits: 9 }, resolve, () => { state.paused = false; });
+          }
           else if (choice === 'meme') openTapGame({ title: 'Meme It Away', color: '#8B5CF6', duration: 6, instruction: 'Mash to push your counter-meme before the bad takes pile up.' }, resolve, () => { state.paused = false; });
           else resolve(null);
         });
@@ -643,6 +699,13 @@ function processGameEvents(events) {
       }
 
       case 'lifeline': {
+        // A shady lifeline peddler goes to the FEED as a clickable offer (like all
+        // shady deals). Only the legit bank lender still interrupts with a modal.
+        if (ev.kind !== 'bank') {
+          pushOfferCard(peddlerProposal(state, ev.deal));
+          showToast('Nearly broke - a shady lifeline just slid into your feed. Tap it to inspect.', 'warning', 4200);
+          break;
+        }
         cancelPlacement(); state.paused = true;
         if (ev.kind === 'bank') {
           const loan = ev.loan;
@@ -667,11 +730,6 @@ function processGameEvents(events) {
               });
             } else showToast('You wave off the bank. Bold.', 'info', 2400);
           });
-        } else {
-          const deal = ev.deal;
-          openPeddlerModal(state, deal,
-            (d) => { playCashGrab('Snatch the Deal', (score) => { const r = actionAcceptPeddler(state, d); if (r.success) { const bonus = Math.round((d.cash || 0) * 0.25 * score); if (bonus) state.cash += bonus; if (d.cash) showGainFloat((d.cash || 0) + bonus, 'cash'); showToast(`Desperate deal taken: +${fmtMoney(d.cash)}${bonus ? ` (+${fmtMoney(bonus)} grabbed)` : ''}${d.debt ? `, +${fmtMoney(d.debt)} debt` : ''}.`, d.debt ? 'warning' : 'success', 4500); } }); },
-            () => { state.paused = false; showToast('You turn down the peddler. The void stares back.', 'info', 2400); });
         }
         break;
       }
@@ -740,21 +798,10 @@ function processGameEvents(events) {
       }
 
       case 'peddler': {
-        cancelPlacement(); state.paused = true;
-        openPeddlerModal(state, ev.deal,
-          (deal) => {
-            playCashGrab('Snatch the Deal', (score) => {
-              const r = actionAcceptPeddler(state, deal);
-              if (r.success) {
-                const bonus = Math.round((deal.cash || 0) * 0.25 * score);
-                if (bonus) state.cash += bonus;
-                if (deal.cash) showGainFloat((deal.cash || 0) + bonus, 'cash');
-                showToast(` Deal done: +${fmtMoney(deal.cash)}${bonus ? ` (+${fmtMoney(bonus)} grabbed)` : ''}${deal.debt ? `, +${fmtMoney(deal.debt)} debt` : ''}.`, deal.debt ? 'warning' : 'success', 4500);
-              }
-            });
-          },
-          () => { state.paused = false; showToast('You wave the peddler off.', 'info', 1800); }
-        );
+        // Shady offers now slide into the FEED as a clickable card instead of a
+        // blocking modal  the player must tap "Inspect the offer" to accept.
+        pushOfferCard(peddlerProposal(state, ev.deal));
+        showToast('A shady offer just hit your feed. Tap it to inspect.', 'info', 3200);
         break;
         }
 
@@ -891,6 +938,27 @@ function processGameEvents(events) {
           actionDeclineAcquisition(state);
           showToast('You decline the offer. The team posts a manifesto and Hype rises.', 'success', 4200);
         });
+        break;
+      }
+
+      case 'repo_warning': {
+        const s = Math.ceil(ev.secondsLeft);
+        const stage = ev.secondsLeft > 28 ? 0 : ev.secondsLeft > 12 ? 1 : 2;
+        const msgs = [
+          [`🚚 Cash is negative. The landlord "just wants to talk". Repo in ~${s}s.`,
+           `🚚 A repo van has circled the block twice. ~${s}s to go cash-positive.`],
+          [`📦 The repo men are measuring the espresso machine. ~${s}s!`,
+           `📦 They've started stacking the beanbags by the door. ~${s}s!`],
+          [`🔧 THEY ARE UNBOLTING THE DESKS. ~${s}s! SELL SOMETHING!`,
+           `🔧 One of them is holding your monitor. ~${s}s! DO SOMETHING!`],
+        ][stage];
+        showToast(msgs[Math.floor(Math.random() * msgs.length)], stage === 2 ? 'error' : 'warning', 3800);
+        if (stage === 2) triggerShake();
+        break;
+      }
+
+      case 'repo_saved': {
+        showToast('💸 Back in the black. The repo men leave, visibly disappointed.', 'success', 3200);
         break;
       }
 
@@ -1460,7 +1528,8 @@ function handleMarketingPost() {
   if (state.cooldowns.marketing > 0) { showToast(`Marketing cooldown: ${state.cooldowns.marketing.toFixed(1)}s`, 'warning'); return; }
   if (state.cash < CONFIG.MARKETING_COST) { showToast(`Need ${fmtMoney(CONFIG.MARKETING_COST)} to run a campaign.`, 'warning'); return; }
   cancelPlacement(); state.paused = true;
-  openTapGame({ title: 'Go Viral', color: '#FF4D9D', duration: 6, instruction: 'Mash the button (or Space) to spike the campaign before the moment passes.' }, (score) => {
+  _mktGameFlip = !_mktGameFlip;
+  const _mktResolve = (score) => {
     state.paused = false;
     const result = actionMarketingPost(state, score);
     if (!result.success) { showToast(result.reason || 'Marketing is not available right now.', 'warning'); return; }
@@ -1470,7 +1539,12 @@ function handleMarketingPost() {
     if (score >= 0.85) celebrate('GONE VIRAL', `+${result.hypeDelta} Hype`, 'hype');
     onStoryAction(state, 'marketing', {});
     mercury.surge();
-  }, () => { state.paused = false; });
+  };
+  if (_mktGameFlip) {
+    openSquashGame({ title: 'Farm Engagement', color: '#FF4D9D', emoji: '👍', hitEmoji: '💖', note: 'Harvest every like before the algorithm buries you. Missed ones churn.', unit: 'engagements farmed', duration: 8, targetHits: 13 }, _mktResolve, () => { state.paused = false; });
+  } else {
+    openTapGame({ title: 'Go Viral', color: '#FF4D9D', duration: 6, instruction: 'Mash the button (or Space) to spike the campaign before the moment passes.' }, _mktResolve, () => { state.paused = false; });
+  }
 }
 
 //  Pitch Modal 
@@ -1539,17 +1613,20 @@ function handleOpenPitchModal() {
 }
 
 function handleCaffeinate() {
-  const result = actionCaffeinate(state);
-  if (!result.success) {
-    showToast(result.reason || 'Nothing to caffeinate.', 'warning');
-    return;
-  }
-  if (result.restoredCount === 0) {
-    showToast('All employees still sharp.', 'info');
-    return;
-  }
-  flashSpend(result);
-  showToast(` Coffee run! ${result.restoredCount} employee(s) recharged. -${fmtMoney(CONFIG.CAFFEINE_COST)}`, 'success', 2500);
+  if (state.gameOver || state.won) return;
+  if (state.cooldowns.caffeine > 0) { showToast(`Coffee cooldown: ${state.cooldowns.caffeine.toFixed(1)}s`, 'warning'); return; }
+  if (state.cash < CONFIG.CAFFEINE_COST) { showToast(`Need ${fmtMoney(CONFIG.CAFFEINE_COST)} for the coffee run.`, 'warning'); return; }
+  if (!state.employees.some(e => e.burnedOut || e.energy < 0.85)) { showToast('All employees still sharp.', 'info'); return; }
+  cancelPlacement(); state.paused = true;
+  openPourGame({ title: 'Coffee Run', note: 'Stop each pour inside the band. Burnt espresso restores nothing but resentment.' }, (score) => {
+    state.paused = false;
+    const result = actionCaffeinate(state, score);
+    if (!result.success) { showToast(result.reason || 'Nothing to caffeinate.', 'warning'); return; }
+    if (result.restoredCount === 0) { showToast('All employees still sharp.', 'info'); return; }
+    flashSpend(result);
+    const quality = score >= 0.9 ? 'Barista-grade!' : score >= 0.62 ? 'Solid brew.' : 'Mostly foam...';
+    showToast(`☕ ${quality} ${result.restoredCount} employee(s) recharged. -${fmtMoney(CONFIG.CAFFEINE_COST)}`, score >= 0.62 ? 'success' : 'warning', 2500);
+  }, () => { state.paused = false; });
 }
 
 function handlePivot() {
@@ -1727,7 +1804,7 @@ function maybeStartBreak() {
   const roamer = new EmployeeCharacter({
     color: CHARACTER_PALETTE[emp.colorIdx % CHARACTER_PALETTE.length], walker: true,
   });
-  roamer.setBasePosition(startPt.x, 0.22, startPt.z);
+  roamer.setBasePosition(startPt.x, CHARACTER_STAND_Y, startPt.z);
   scene.add(roamer.root);
 
   const restPt = { x: dest.x, z: dest.z + 0.7 };

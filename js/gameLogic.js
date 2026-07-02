@@ -18,20 +18,24 @@ import { clamp } from './tween.js';
 //  Game Constants 
 export const CONFIG = {
   // Economy
-  STARTING_CASH:         30000,
+  STARTING_CASH:         26000,
   PRE_LAUNCH_BURN:       50,     // $/s while still in stealth (garage rent + ramen clock)
   BASE_BURN_PER_SEC:     125,    // $/s fixed costs AFTER you go live (AWS, real rent, kombucha tap)
-  MRR_HYPE_FLOOR:        0.85,   // revenue multiplier at 0 hype; launched products should earn real money
-  MRR_HYPE_SCALE:        0.65,   // extra revenue multiplier at 100 hype
-  DEBT_LIMIT:            -75000, // you can run in the red, but bankrupt below this
+  BURN_RAMP_PER_MIN:     0.055,  // live burn creeps up ~5.5%/min (success attracts invoices)
+  BURN_RAMP_CAP:         1.8,    // ...capped at +80%
+  MRR_HYPE_FLOOR:        0.72,   // revenue multiplier at 0 hype; stay relevant or starve
+  MRR_HYPE_SCALE:        0.78,   // extra revenue multiplier at 100 hype
+  DEBT_LIMIT:            -45000, // hard floor: below this the bank simply stops pretending
+  REPO_GRACE:            42,     // seconds you can run cash-negative before the repo men finish
+  REPO_ACCEL:            2.2,    // countdown up to ~3.2x faster the deeper in the red you are
   LIFELINE_CASH:         3500,   // below this (and bleeding) a bank or peddler steps in
   LIFELINE_RUNWAY:       30,     // ...if runway is under this many seconds
   LIFELINE_COOLDOWN:     [34, 55],
 
   // Product investment & launch odds  starting an ambitious project costs
   // more up front, but it's far more likely to succeed when it launches.
-  PRODUCT_MRR_MULT:      1.6,    // product ideas are now meaningful businesses, not novelty coupons
-  PRODUCT_MRR_BONUS:     120,    // floor lift so the first launch can flip cashflow positive
+  PRODUCT_MRR_MULT:      1.5,    // product ideas are meaningful businesses, not novelty coupons
+  PRODUCT_MRR_BONUS:     80,     // floor lift so the first launch can nearly flip cashflow
   INVEST_BASE:           900,    // flat cost to spin up any project
   INVEST_PER_DEVPOINT:   70,     // $ per point of build effort (ambition)
   INVEST_PER_MRR:        3.5,    // $ per $/s of intended revenue
@@ -50,7 +54,7 @@ export const CONFIG = {
 
   // Hype
   HYPE_MAX:              100,
-  HYPE_DECAY_PER_SEC:    1.05,
+  HYPE_DECAY_PER_SEC:    1.15,
   HYPE_LAUNCH_BURST:     18,     // base hype per feature launch stunt
 
   // Office building  a sensible "furniture < workstation < infrastructure" ladder:
@@ -344,40 +348,40 @@ export const MARKET_CATEGORIES = [
 // eff multipliers default 1 (); additive bonuses default 0. upkeep adds to burn.
 export const FACILITIES = [
   // Tier 1  devices, available from the start
-  { id: 'espresso',  name: 'Espresso Bar',     icon: '+', kind: 'Device', tier: 1, cost: 9000,  upkeep: 6,  desc: 'Caffeine on tap. Team burns out 30% slower.',     eff: { energyDecay: 0.7 } },
-  { id: 'gpu',       name: 'GPU Cluster',       icon: '+', kind: 'Device', tier: 1, cost: 18000, upkeep: 14, desc: 'More compute. +35% team dev speed.',               eff: { dev: 1.35 } },
-  { id: 'neon',      name: 'Neon Brand Wall',   icon: '+', kind: 'Device', tier: 1, cost: 12000, upkeep: 8,  desc: 'Looks legit on camera. +0.8 passive Hype/s.',      eff: { hypeAura: 0.8 } },
-  { id: 'dashboard', name: 'Growth Dashboard',  icon: '+', kind: 'Device', tier: 1, cost: 15000, upkeep: 10, desc: 'Optimize the funnel. +18% MRR.',                   eff: { mrr: 1.18 } },
-  { id: 'sprinkler', name: 'Fire Suppression',  icon: '+', kind: 'Device', tier: 1, cost: 11000, upkeep: 7,  desc: 'Halve fire damage; server fires 40% rarer.',       eff: { fireDamage: 0.5, fireInterval: 1.4 } },
+  { id: 'espresso',  name: 'Espresso Bar',     icon: '+', emoji: '☕', kind: 'Device', tier: 1, cost: 9000,  upkeep: 6,  desc: 'Caffeine on tap. Team burns out 30% slower.',     eff: { energyDecay: 0.7 } },
+  { id: 'gpu',       name: 'GPU Cluster',       icon: '+', emoji: '🎛️', kind: 'Device', tier: 1, cost: 18000, upkeep: 14, desc: 'More compute. +35% team dev speed.',               eff: { dev: 1.35 } },
+  { id: 'neon',      name: 'Neon Brand Wall',   icon: '+', emoji: '🌈', kind: 'Device', tier: 1, cost: 12000, upkeep: 8,  desc: 'Looks legit on camera. +0.8 passive Hype/s.',      eff: { hypeAura: 0.8 } },
+  { id: 'dashboard', name: 'Growth Dashboard',  icon: '+', emoji: '📈', kind: 'Device', tier: 1, cost: 15000, upkeep: 10, desc: 'Optimize the funnel. +18% MRR.',                   eff: { mrr: 1.18 } },
+  { id: 'sprinkler', name: 'Fire Suppression',  icon: '+', emoji: '🧯', kind: 'Device', tier: 1, cost: 11000, upkeep: 7,  desc: 'Halve fire damage; server fires 40% rarer.',       eff: { fireDamage: 0.5, fireInterval: 1.4 } },
   // Tier 2  rooms, need "Facilities Permit" research
-  { id: 'serverroom', name: 'Server Room',      icon: '#', kind: 'Room', tier: 2, cost: 45000, upkeep: 22, desc: 'Dedicated infra. +25% dev speed, fire damage -40%.', eff: { dev: 1.25, fireDamage: 0.6 } },
-  { id: 'breakroom',  name: 'Break Room',       icon: '#', kind: 'Room', tier: 2, cost: 38000, upkeep: 18, desc: 'Naps & ping-pong. Burnout -45%, +0.3 Hype/s.',       eff: { energyDecay: 0.55, hypeAura: 0.3 } },
-  { id: 'warroom',    name: 'War Room',         icon: '#', kind: 'Room', tier: 2, cost: 42000, upkeep: 20, desc: 'Where pitches are forged. +0.4 pitch quality.',      eff: { pitch: 0.4 } },
-  { id: 'cafeteria',  name: 'Cafeteria',        icon: '#', kind: 'Room', tier: 2, cost: 40000, upkeep: 19, desc: 'Free lunch (not really free). Burnout -35%, +8% MRR.', eff: { energyDecay: 0.65, mrr: 1.08 } },
+  { id: 'serverroom', name: 'Server Room',      icon: '#', emoji: '🗄️', kind: 'Room', tier: 2, cost: 45000, upkeep: 22, desc: 'Dedicated infra. +25% dev speed, fire damage -40%.', eff: { dev: 1.25, fireDamage: 0.6 } },
+  { id: 'breakroom',  name: 'Break Room',       icon: '#', emoji: '🛋️', kind: 'Room', tier: 2, cost: 38000, upkeep: 18, desc: 'Naps & ping-pong. Burnout -45%, +0.3 Hype/s.',       eff: { energyDecay: 0.55, hypeAura: 0.3 } },
+  { id: 'warroom',    name: 'War Room',         icon: '#', emoji: '🎯', kind: 'Room', tier: 2, cost: 42000, upkeep: 20, desc: 'Where pitches are forged. +0.4 pitch quality.',      eff: { pitch: 0.4 } },
+  { id: 'cafeteria',  name: 'Cafeteria',        icon: '#', emoji: '🍜', kind: 'Room', tier: 2, cost: 40000, upkeep: 19, desc: 'Free lunch (not really free). Burnout -35%, +8% MRR.', eff: { energyDecay: 0.65, mrr: 1.08 } },
   // Tier 3  advanced rooms, need "Corporate Campus" research
-  { id: 'lab',        name: 'R&D Lab',          icon: '#', kind: 'Room', tier: 3, cost: 75000, upkeep: 34, desc: 'Bleeding edge. +30% dev speed, +12% MRR, launches land more often.', eff: { dev: 1.3, mrr: 1.12, success: 0.08 } },
-  { id: 'legal',      name: 'Legal Department',  icon: '#', kind: 'Room', tier: 3, cost: 65000, upkeep: 30, desc: 'Actual lawyers. PR disasters 55% less severe.',      eff: { prSeverity: 0.45 } },
-  { id: 'datacenter', name: 'Private Data Center',icon: '#', kind: 'Room', tier: 3, cost: 95000, upkeep: 42, desc: 'Own your infra. +40% dev speed, fires 60% rarer.',     eff: { dev: 1.4, fireInterval: 1.6 } },
+  { id: 'lab',        name: 'R&D Lab',          icon: '#', emoji: '🧪', kind: 'Room', tier: 3, cost: 75000, upkeep: 34, desc: 'Bleeding edge. +30% dev speed, +12% MRR, launches land more often.', eff: { dev: 1.3, mrr: 1.12, success: 0.08 } },
+  { id: 'legal',      name: 'Legal Department',  icon: '#', emoji: '⚖️', kind: 'Room', tier: 3, cost: 65000, upkeep: 30, desc: 'Actual lawyers. PR disasters 55% less severe.',      eff: { prSeverity: 0.45 } },
+  { id: 'datacenter', name: 'Private Data Center',icon: '#', emoji: '🏰', kind: 'Room', tier: 3, cost: 95000, upkeep: 42, desc: 'Own your infra. +40% dev speed, fires 60% rarer.',     eff: { dev: 1.4, fireInterval: 1.6 } },
 ];
 
 //  Research / Tech Tree (instant unlocks, gated by prereqs + cash) 
 export const RESEARCH = [
-  { id: 'facilities1', name: 'Bribe the Inspector',  tier: 1, cost: 14000,  req: [],                       unlockTier: 2, desc: 'Unlock Tier-2 rooms. He "didn\'t see any of the wiring." ' },
-  { id: 'adnetwork',   name: 'Monetize Your Soul',  tier: 1, cost: 16000,  req: [],                       eff: { mrr: 1.2 },              desc: '+20% MRR. The privacy policy is now a single shrug emoji.' },
-  { id: 'devtools',    name: 'Replace IDEs w/ Vibes',tier: 1, cost: 18000,  req: [],                       eff: { dev: 1.15 },             desc: '+15% dev speed. The linter has been emotionally suppressed.' },
-  { id: 'genai',       name: 'Ship First, Test Never',tier: 2, cost: 70000,  req: ['devtools'],             eff: { dev: 1.25, shipHype: 6, success: 0.05 },desc: '+25% dev speed; launches give +6 Hype and land a bit more often. QA is now a state of mind. ' },
-  { id: 'growthhack',  name: 'Manufacture FOMO',    tier: 2, cost: 80000,  req: ['adnetwork'],            eff: { mrr: 1.3, hypeAura: 0.4 },desc: '+30% MRR, +0.4 Hype/s. Waitlist of 4M (3.9M are your own bots).' },
-  { id: 'facilities2', name: 'Annex the Parking Lot',tier: 2, cost: 90000,  req: ['facilities1'],          unlockTier: 3, desc: 'Unlock Tier-3 facilities. Now with a slide nobody is allowed to use. ' },
-  { id: 'agents',      name: 'Outsource Everything', tier: 3, cost: 220000, req: ['genai'],                eff: { dev: 1.4 },              desc: '+40% dev speed. The whole company is now contractors in 11 time zones. ' },
-  { id: 'autoscale',   name: 'Summon Infinite Servers',     tier: 3, cost: 260000, req: ['growthhack'],           eff: { mrr: 1.5, fireInterval: 1.5 }, desc: '+50% MRR; fires 50% rarer. The AWS bill is now structurally load-bearing.' },
-  { id: 'agi',         name: 'Pivot to Everything',  tier: 4, cost: 850000, req: ['agents', 'autoscale'],  eff: { dev: 1.6, mrr: 1.5, hypeAura: 1.0 }, desc: 'EVERYTHING, but more. The pitch deck is now 400 slides and zero nouns. ' },
+  { id: 'facilities1', name: 'Bribe the Inspector',  emoji: '🤝', tier: 1, cost: 14000,  req: [],                       unlockTier: 2, desc: 'Unlock Tier-2 rooms. He "didn\'t see any of the wiring." ' },
+  { id: 'adnetwork',   name: 'Monetize Your Soul',  emoji: '👁️', tier: 1, cost: 16000,  req: [],                       eff: { mrr: 1.2 },              desc: '+20% MRR. The privacy policy is now a single shrug emoji.' },
+  { id: 'devtools',    name: 'Replace IDEs w/ Vibes',emoji: '🔮', tier: 1, cost: 18000,  req: [],                       eff: { dev: 1.15 },             desc: '+15% dev speed. The linter has been emotionally suppressed.' },
+  { id: 'genai',       name: 'Ship First, Test Never',emoji: '🚀', tier: 2, cost: 70000,  req: ['devtools'],             eff: { dev: 1.25, shipHype: 6, success: 0.05 },desc: '+25% dev speed; launches give +6 Hype and land a bit more often. QA is now a state of mind. ' },
+  { id: 'growthhack',  name: 'Manufacture FOMO',    emoji: '🤖', tier: 2, cost: 80000,  req: ['adnetwork'],            eff: { mrr: 1.3, hypeAura: 0.4 },desc: '+30% MRR, +0.4 Hype/s. Waitlist of 4M (3.9M are your own bots).' },
+  { id: 'facilities2', name: 'Annex the Parking Lot',emoji: '🅿️', tier: 2, cost: 90000,  req: ['facilities1'],          unlockTier: 3, desc: 'Unlock Tier-3 facilities. Now with a slide nobody is allowed to use. ' },
+  { id: 'agents',      name: 'Outsource Everything', emoji: '🌍', tier: 3, cost: 220000, req: ['genai'],                eff: { dev: 1.4 },              desc: '+40% dev speed. The whole company is now contractors in 11 time zones. ' },
+  { id: 'autoscale',   name: 'Summon Infinite Servers',     emoji: '♾️', tier: 3, cost: 260000, req: ['growthhack'],           eff: { mrr: 1.5, fireInterval: 1.5 }, desc: '+50% MRR; fires 50% rarer. The AWS bill is now structurally load-bearing.' },
+  { id: 'agi',         name: 'Pivot to Everything',  emoji: '🌀', tier: 4, cost: 850000, req: ['agents', 'autoscale'],  eff: { dev: 1.6, mrr: 1.5, hypeAura: 1.0 }, desc: 'EVERYTHING, but more. The pitch deck is now 400 slides and zero nouns. ' },
 ];
 
 //  Bank Loans (instant cash, ongoing interest) 
 export const LOANS = [
-  { id: 'micro',  name: 'Microloan',         icon: '$', cash: 20000,  interest: 28,  desc: 'A credit union that "believes in you." +$28/s interest.' },
-  { id: 'series', name: 'Bridge Loan',       icon: 'B', cash: 60000,  interest: 95,  desc: 'A real bank, real paperwork. +$95/s interest.' },
-  { id: 'mega',   name: 'Venture Debt',      icon: 'VC', cash: 150000, interest: 260, desc: 'The terms are a love letter to the lender. +$260/s interest.' },
+  { id: 'micro',  name: 'Microloan',         icon: '$', emoji: '🐖', cash: 20000,  interest: 28,  desc: 'A credit union that "believes in you." +$28/s interest.' },
+  { id: 'series', name: 'Bridge Loan',       icon: 'B', emoji: '🏦', cash: 60000,  interest: 95,  desc: 'A real bank, real paperwork. +$95/s interest.' },
+  { id: 'mega',   name: 'Venture Debt',      icon: 'VC', emoji: '🦈', cash: 150000, interest: 260, desc: 'The terms are a love letter to the lender. +$260/s interest.' },
 ];
 
 //  Development Tactics 
@@ -392,10 +396,10 @@ export const DEV_MODES = {
 
 //  Shipped Product Roadmap Features 
 export const FEATURE_OPTIONS = [
-  { id: 'growth_loop', name: 'Growth Loop', dev: 42, cost: 3500, mrrBoost: 95,  hype: 8,  burn: 8,  bugRisk: 0.22, desc: '+MRR and Hype, adds support burn.' },
-  { id: 'enterprise',  name: 'Enterprise Tier', dev: 62, cost: 6500, mrrBoost: 180, hype: 5,  burn: 16, bugRisk: 0.32, desc: 'Big MRR, boring meetings, more bugs.' },
-  { id: 'ai_wrapper',  name: 'AI Wrapper', dev: 50, cost: 5200, mrrBoost: 135, hype: 15, burn: 12, bugRisk: 0.42, desc: 'Huge hype, fragile demo energy.' },
-  { id: 'stability',   name: 'Stability Pass', dev: 38, cost: 2800, mrrBoost: 45,  hype: 4,  burn: 4,  bugRisk: 0.08, desc: 'Small upside, lowers tech debt on ship.' },
+  { id: 'growth_loop', name: 'Growth Loop', emoji: '🌀', dev: 42, cost: 3500, mrrBoost: 95,  hype: 8,  burn: 8,  bugRisk: 0.22, desc: '+MRR and Hype, adds support burn.' },
+  { id: 'enterprise',  name: 'Enterprise Tier', emoji: '🏢', dev: 62, cost: 6500, mrrBoost: 180, hype: 5,  burn: 16, bugRisk: 0.32, desc: 'Big MRR, boring meetings, more bugs.' },
+  { id: 'ai_wrapper',  name: 'AI Wrapper', emoji: '🎁', dev: 50, cost: 5200, mrrBoost: 135, hype: 15, burn: 12, bugRisk: 0.42, desc: 'Huge hype, fragile demo energy.' },
+  { id: 'stability',   name: 'Stability Pass', emoji: '🩹', dev: 38, cost: 2800, mrrBoost: 45,  hype: 4,  burn: 4,  bugRisk: 0.08, desc: 'Small upside, lowers tech debt on ship.' },
 ];
 
 //  Peddlers (random shady offers  fast cash, nasty strings) 
@@ -1204,7 +1208,11 @@ export function getSalaryBurn(state) {
 
 export function getBurnRate(state) {
   // Stealth garage is cheap; going live turns on the real cost of doing business.
-  const base = state.live ? CONFIG.BASE_BURN_PER_SEC : CONFIG.PRE_LAUNCH_BURN;
+  // Once live, fixed costs creep upward - every minute of "scale" invents a new invoice.
+  const ramp = state.live
+    ? Math.min(CONFIG.BURN_RAMP_CAP, 1 + (state.liveSeconds || 0) / 60 * CONFIG.BURN_RAMP_PER_MIN)
+    : 1;
+  const base = (state.live ? CONFIG.BASE_BURN_PER_SEC : CONFIG.PRE_LAUNCH_BURN) * ramp;
   const productBurn = state.shippedProducts.reduce((s, p) => s + productOpsBurn(p), 0);
   return base + getSalaryBurn(state) + getModifiers(state).upkeep + (state.loanBurn || 0) + productBurn;
 }
@@ -1832,12 +1840,39 @@ export function updateGame(state, dt) {
     }
   }
 
-  //  Stats / Lose Condition 
+  //  Stats / Lose Condition
   state.stats.peakHype = Math.max(state.stats.peakHype, state.hype);
   state.peakValuation = Math.max(state.peakValuation, getValuation(state));
+  if (state.live) state.liveSeconds = (state.liveSeconds || 0) + dt;
+  // Feed-reaction hype budget trickles back (~1 reaction per 12s).
+  state._feedReactBudget = Math.min(3, (state._feedReactBudget ?? 3) + dt * 0.08);
 
-  if (state.cash <= CONFIG.DEBT_LIMIT) {
+  //  Repo clock: running cash-negative starts a countdown. The deeper in the
+  //  red, the faster the repo men work. Climb back above $0 and they leave
+  //  (disappointed). Hit the hard DEBT_LIMIT and it's over immediately.
+  if (state.cash < 0 && !state.gameOver && !state.won) {
+    const depth = Math.min(1, -state.cash / -CONFIG.DEBT_LIMIT);
+    const drain = 1 + depth * CONFIG.REPO_ACCEL;
+    state.repoTimer = (state.repoTimer ?? CONFIG.REPO_GRACE) - dt * drain;
+    state._repoWarnT = (state._repoWarnT ?? 0) - dt;
+    if (state._repoWarnT <= 0 && state.repoTimer > 0) {
+      state._repoWarnT = 8;
+      events.push({ type: 'repo_warning', secondsLeft: Math.max(0, state.repoTimer) });
+    }
+    if (state.repoTimer <= 0) {
+      state.gameOver = true;
+      state.gameOverCause = 'repo';
+      events.push({ type: 'game_over' });
+    }
+  } else if (state.repoTimer != null && state.cash >= 0) {
+    state.repoTimer = null;
+    state._repoWarnT = 0;
+    if (!state.gameOver && !state.won) events.push({ type: 'repo_saved' });
+  }
+
+  if (state.cash <= CONFIG.DEBT_LIMIT && !state.gameOver) {
     state.gameOver = true;
+    state.gameOverCause = 'debt';
     events.push({ type: 'game_over' });
   }
 
@@ -2298,7 +2333,7 @@ export function actionResolvePRResponse(state, prId, choice, score = null) {
  * Caffeinate employees  costs cash, restores energy.
  * Caffeine Gremlins get double restore.
  */
-export function actionCaffeinate(state) {
+export function actionCaffeinate(state, pourScore = null) {
   if (state.cooldowns.caffeine > 0) {
     return { success: false, reason: `Cooldown: ${state.cooldowns.caffeine.toFixed(1)}s` };
   }
@@ -2307,11 +2342,13 @@ export function actionCaffeinate(state) {
   }
   if (state.paused || state.gameOver || state.won) return { success: false };
 
+  // A well-poured cup restores more; a botched pour is mostly foam.
+  const pourMult = pourScore == null ? 1 : 0.55 + pourScore * 0.7;
   let restored = 0;
   for (const emp of state.employees) {
     if (emp.burnedOut || emp.energy < 0.85) {
       const mult = PERSONALITIES[emp.personality].caffeineMult ?? 1;
-      emp.energy = Math.min(1.0, emp.energy + CONFIG.CAFFEINE_RESTORE * mult);
+      emp.energy = Math.min(1.0, emp.energy + CONFIG.CAFFEINE_RESTORE * mult * pourMult);
       emp.burnedOut = false;
       restored++;
     }
@@ -2994,13 +3031,54 @@ export const PROPOSALS = [
     pitch: `Come on the pod to "tell your story" (read a 90-minute ad). Great exposure. Exposure, notably, does not pay the AWS bill.`,
     accept: { hype: _pri(6, 12), cash: -cost, outcome: `You went on. Said "at the end of the day" 31 times. Somehow, hype is up.` },
     decline:{ outcome: `You skipped the pod. They booked a competitor instead. That one stings.` } }; },
+  // ---- shady crypto / scam offers (the peddler, now in your feed) ----
+  (st) => { const up = _pri(20, 90) * 1000, debt = _pri(30, 70) * 1000, ticker = (st.companyName || 'COIN').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'MOON'; return {
+    source: 'x', who: '@CryptoChad', handle: 'founder, $' + ticker + ' (unaudited)', cta: 'Inspect the offer', accentLabel: 'DEFINITELY LEGAL',
+    pitch: `Launch $${ticker} with us. We front ${fmtMoney(up)} in "liquidity" (a coin you cannot sell). When it moons you win. When it rugs, well, you were early.`,
+    accept: { cash: up, debt, hype: _pri(6, 14), outcome: `$${ticker} is live. It moons for 4 minutes, then becomes a cautionary Netflix documentary.` },
+    decline:{ hype: 2, outcome: `You passed on $${ticker}. It rugs 900 strangers instead. You sleep fine.` } }; },
+  (st) => { const cost = _pri(6, 18) * 1000; return {
+    source: 'x', who: '@NFTVisionary', handle: '5,000 apes strong', cta: 'See the drop', accentLabel: 'WEB3',
+    pitch: `Mint a "utility" NFT collection tied to ${st.companyName || 'your app'}. Costs ${fmtMoney(cost)} in gas and dignity. The utility is that you own a JPEG of a sad monkey.`,
+    accept: { cash: -cost, hype: _pri(8, 16), outcome: `The drop sold out in 3 minutes to 9 wallets, all yours. Floor price: emotional damage.` },
+    decline:{ outcome: `You skipped the mint. The monkeys find a new founder by dinner.` } }; },
+  (st) => { const up = _pri(35, 80) * 1000, debt = _pri(55, 120) * 1000; return {
+    source: 'em', who: 'Sovereign Wealth "Fund"', handle: 'a prince, allegedly', cta: 'Open the wire details', accentLabel: 'LOAN SHARK',
+    pitch: `A "family office" (one man, one cousin, one yacht) wires ${fmtMoney(up)} against "the upside." The term sheet is one paragraph and one threat.`,
+    accept: { cash: up, debt, outcome: `The wire clears. So does your peace of mind. Dimitri now has "quick questions" at 2am.` },
+    decline:{ hype: 3, outcome: `You declined the prince. He forwards the email to nine other founders within the hour.` } }; },
 ];
 
 let _pidSeq = 0;
+function _newPid() { return 'prop' + (++_pidSeq) + '_' + Math.floor(Math.random() * 1e4).toString(36); }
 /** Roll a fresh proposal instance (with a unique pid). */
 export function rollProposal(state) {
   const p = _ppick(PROPOSALS)(state);
-  p.pid = 'prop' + (++_pidSeq) + '_' + Math.floor(Math.random() * 1e4).toString(36);
+  p.pid = _newPid();
+  return p;
+}
+
+/* Shady personas that "slide into your DMs" with a peddler deal. */
+const _pScammers = ['A Man With A Van', 'Dimitri (no last name)', '@GrowthGoblin', 'a guy named Sal',
+  'The Liquidity Guy', 'a "growth agency"', 'a man with a clipboard', 'your cousin\'s crypto friend'];
+/**
+ * Turn a raw PEDDLER_DEAL into an openable feed proposal, so shady offers arrive
+ * in the feed as a card you must CLICK to accept  no more interrupting modal.
+ */
+export function peddlerProposal(state, deal) {
+  const shady   = /crypto|coin|token|SPAC|exchange|checkmark|bots|"users"/i.test(deal.text);
+  const loan    = (deal.debt || 0) > 0;
+  const p = {
+    source: loan ? 'em' : 'x',
+    who: loan ? 'A "family office"' : _ppick(_pScammers),
+    handle: loan ? 'terms in Comic Sans' : (shady ? 'definitely-real.biz' : 'no questions asked'),
+    cta: 'Inspect the offer', accentLabel: loan ? 'LOAN SHARK' : (shady ? 'DEFINITELY LEGAL' : 'SHADY DEAL'),
+    pitch: deal.text,
+    accept: { cash: deal.cash || 0, debt: deal.debt || 0, hype: deal.hype || 0,
+      outcome: `Deal done: +${fmtMoney(deal.cash || 0)}${deal.debt ? `, +${fmtMoney(deal.debt)} debt` : ''}${deal.hype ? `, ${deal.hype > 0 ? '+' : ''}${deal.hype} Hype` : ''}. No refunds, no receipts.` },
+    decline: { outcome: 'You leave the offer on read. The peddler shrugs and finds another founder.' },
+    pid: _newPid(),
+  };
   return p;
 }
 /** Apply a proposal's accept/decline effects. Returns the outcome line + deltas. */

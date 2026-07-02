@@ -16,9 +16,9 @@ function liveGame() {
   s.hype = 100; // hypeMult = FLOOR + SCALE = 1.3 -> isolate; we mostly compare ratios
   s.rackDown = [false, false]; // both servers online so serverMult = 1
   // Neutral product-ops fields so productEffectiveMRR's quality/debt/bug/price
-  // multipliers are all exactly 1 (quality 68.4 -> 0.82 + 68.4/380 = 1.0), which
+  // multipliers are all exactly 1 (quality 70 -> 1 + (70-70)/150 = 1.0), which
   // isolates the trend/clone math this suite is actually checking.
-  const mk = (name, desc, mrr) => ({ idea: { name, desc, mrr, hype: 10, absurdity: 1 }, freshness: 1, shelfIdx: 0, quality: 68.4, bugs: 0, techDebt: 0, price: 1, userBase: 1, featureMrrBonus: 0, outageTimer: 0 });
+  const mk = (name, desc, mrr) => ({ idea: { name, desc, mrr, hype: 10, absurdity: 1 }, freshness: 1, shelfIdx: 0, quality: 70, bugs: 0, techDebt: 0, price: 1, userBase: 1, featureMrrBonus: 0, outageTimer: 0 });
   s.shippedProducts = [
     mk('BlockchainForCats', 'Decentralized litter-box token protocol', 300),
     mk('Goat Yoga On-Demand', 'A goat is dispatched in 30 minutes', 200),

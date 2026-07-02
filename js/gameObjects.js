@@ -76,26 +76,12 @@ export class OfficePlatform {
     const root = this.root;
     const concrete = (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.0, roughness: 0.95 });
 
-    // Slab / walls / floor  materials kept so setTier() can recolor them
-    this.slabMat = concrete(0x3b3a38);
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(10, 0.4, 8), this.slabMat);
-    slab.castShadow = slab.receiveShadow = true;
-    root.add(slab);
-
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.4, roughness: 0.7 });
-    const trimGeo = new THREE.BoxGeometry(10.1, 0.06, 8.1);
-    const trim = new THREE.Mesh(trimGeo, trimMat); trim.position.y = 0.23; root.add(trim);
-    const bottomTrim = new THREE.Mesh(trimGeo, trimMat); bottomTrim.position.y = -0.23; root.add(bottomTrim);
-
-    this.wallMat = concrete(0x46433f);
-    for (const cfg of [
-      { w: 10, h: 0.9, d: 0.15, x: 0,  y: 0.65, z: -4 },
-      { w: 0.15, h: 0.9, d: 8,  x: -5, y: 0.65, z: 0  },
-      { w: 0.15, h: 0.9, d: 8,  x:  5, y: 0.65, z: 0  },
-    ]) {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d), this.wallMat);
-      wall.position.set(cfg.x, cfg.y, cfg.z); wall.castShadow = true; root.add(wall);
-    }
+    // The procedural floor (main slab + inner desk floor) and walls (back + two
+    // sides, the roll-up garage door, and the sleek-office glass panels) that
+    // used to be built here have been removed  the real environment now comes in
+    // from level.json (Garage_Floor.glb + Garage_Wall_*.glb), and the old concrete
+    // boxes only clipped through it. What remains is the corner support pillars
+    // (hidden under the real floor) and the loose garage props further below.
 
     const pillarMat = concrete(0x222020);
     for (const [px, pz] of [[-4.5,3.5],[-4.5,-3.5],[4.5,3.5],[4.5,-3.5]]) {
@@ -103,22 +89,10 @@ export class OfficePlatform {
       pillar.position.set(px, -1.7, pz); root.add(pillar);
     }
 
-    this.floorMat = concrete(0x4a4642);
-    const deskFloor = new THREE.Mesh(new THREE.BoxGeometry(6, 0.02, 5), this.floorMat);
-    deskFloor.position.set(0, 0.21, 0.5); deskFloor.receiveShadow = true; root.add(deskFloor);
-
-    //  Garage props (only visible at tier 0) 
-    this.garageGroup = new THREE.Group(); root.add(this.garageGroup);
-    const slatMat = new THREE.MeshStandardMaterial({ color: 0x6b6b70, metalness: 0.45, roughness: 0.6 });
-    for (let i = 0; i < 8; i++) {
-      const slat = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.17, 0.06), slatMat);
-      slat.position.set(0, 0.4 + i * 0.18, -3.95); this.garageGroup.add(slat);
-    }
-    const railMat = new THREE.MeshStandardMaterial({ color: 0x303030, metalness: 0.6, roughness: 0.5 });
-    for (const rx of [-1.75, 1.75]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.6, 0.07), railMat);
-      rail.position.set(rx, 1.05, -3.92); this.garageGroup.add(rail);
-    }
+    //  Garage props (only visible at tier 0). Dropped ~0.4 to rest on the real
+    //  Garage_Floor.glb surface (y -0.39) now that the old temp floor (y 0.01,
+    //  which these were placed on) is gone  otherwise they'd float.
+    this.garageGroup = new THREE.Group(); this.garageGroup.position.y = -0.40; root.add(this.garageGroup);
     const stain = new THREE.Mesh(new THREE.CircleGeometry(0.6, 20),
       new THREE.MeshStandardMaterial({ color: 0x1b1814, roughness: 1 }));
     stain.rotation.x = -Math.PI / 2; stain.position.set(1.7, 0.222, 1.7); this.garageGroup.add(stain);
@@ -129,48 +103,19 @@ export class OfficePlatform {
       this.garageGroup.add(box);
     }
 
-    //  Office accents (revealed when you expand: cyan edges + glass walls) 
-    this.officeGroup = new THREE.Group(); this.officeGroup.visible = false; root.add(this.officeGroup);
-    const edgeMat = new THREE.MeshStandardMaterial({ color: COLORS.cyan, emissive: new THREE.Color(COLORS.cyan), emissiveIntensity: 0.8 });
-    for (const cfg of [
-      { w: 10.1, h: 0.02, d: 0.02, x: 0, y: 0.21, z: -4 },
-      { w: 10.1, h: 0.02, d: 0.02, x: 0, y: 0.21, z:  4 },
-      { w: 0.02, h: 0.02, d: 8,    x:-5, y: 0.21, z:  0 },
-      { w: 0.02, h: 0.02, d: 8,    x: 5, y: 0.21, z:  0 },
-    ]) {
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d), edgeMat);
-      edge.position.set(cfg.x, cfg.y, cfg.z); this.officeGroup.add(edge);
-    }
-    const panelMat = glassMat(0.15); panelMat.color.set(COLORS.glass);
-    panelMat.emissive = new THREE.Color(COLORS.cyan); panelMat.emissiveIntensity = 0.05;
-    for (const cfg of [
-      { w: 9.5, h: 0.8, d: 0.05, x: 0,    y: 0.95, z: -3.9 },
-      { w: 0.05, h: 0.8, d: 7.5, x: -4.9, y: 0.95, z: 0    },
-      { w: 0.05, h: 0.8, d: 7.5, x:  4.9, y: 0.95, z: 0    },
-    ]) {
-      const panel = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d), panelMat.clone());
-      panel.position.set(cfg.x, cfg.y, cfg.z); this.officeGroup.add(panel);
-    }
-
     root.position.y = -0.2;
     this.setTier(0);
   }
 
-  /** Transform the office look for an expansion tier (0 garage  2 sleek). */
+  /**
+   * Track the expansion tier. The procedural floor/walls that used to recolour
+   * per tier (and the sleek-office glass accents) are gone now that the real
+   * environment is supplied by level.json; this just keeps the loose garage props
+   * to the garage tier.
+   */
   setTier(n) {
     this.tier = n;
     if (this.garageGroup) this.garageGroup.visible = (n === 0);
-    if (this.officeGroup) this.officeGroup.visible = (n >= 1);
-    const floorCol = n === 0 ? 0x4a4642 : n === 1 ? 0x33373f : 0x262a34;
-    const slabCol  = n === 0 ? 0x3b3a38 : n === 1 ? 0x2c2f36 : 0x22242c;
-    const wallCol  = n === 0 ? 0x46433f : n === 1 ? 0x3a3d44 : 0x2e3138;
-    if (this.floorMat) {
-      this.floorMat.color.setHex(floorCol);
-      this.floorMat.metalness = n >= 2 ? 0.5 : 0.0;
-      this.floorMat.roughness = n >= 2 ? 0.3 : 0.95;
-    }
-    if (this.slabMat) this.slabMat.color.setHex(slabCol);
-    if (this.wallMat) this.wallMat.color.setHex(wallCol);
   }
 
   addToScene(scene) { scene.add(this.root); }
@@ -250,7 +195,9 @@ export function makeCompanySign(name, tier = 0) {
 
   root.userData.canvas = cv;
   root.userData.tex = tex;
-  root.position.set(0, 2.15, -3.86);
+  // Mounted flush on the back garage wall mesh (inner face ~z=-4.49,
+  // wall top ~y=2.42) so the board reads as bolted to the wall.
+  root.position.set(0, 1.9, -4.43);
   return root;
 }
 
@@ -988,23 +935,31 @@ export const CHARACTER_PALETTE = [
   0x00FFFF, 0xFF00FF, 0xFFB300, 0x4CFF4C, 0x8A7CFF, 0xFF7A4C,
 ];
 
+// Uniform scale applied to every character so people read at a believable
+// size next to desks (0.55) and walls. Feet sit at local y=-0.22, so a
+// standing walker's base y must be 0.22 * CHARACTER_SCALE.
+export const CHARACTER_SCALE = 1.35;
+export const CHARACTER_STAND_Y = 0.22 * CHARACTER_SCALE;
+
 /**
  * Small low-poly person. Used for employees (colored hoodie)
  * and VCs (dark suit + tie).
  */
 export class EmployeeCharacter {
-  constructor({ color = COLORS.cyan, suit = false, walker = false } = {}) {
+  constructor({ color = COLORS.cyan, suit = false, walker = false, scale = CHARACTER_SCALE } = {}) {
     this.root    = new THREE.Group();
     this._energy = 1.0;
     this._burned = false;
     this._walker = walker;
     this._walkTarget = null;
     this._onArrive = null;
-    this._walkSpeed = 1.7;
+    this._scale = scale;
+    this._walkSpeed = 1.7 * Math.sqrt(scale);
     this._legPhase = 0;
     this._legs = null;
     this._plumb = null;
     this._build(color, suit, walker);
+    this.root.scale.setScalar(scale);
   }
 
   _build(color, suit, walker) {
@@ -1141,7 +1096,7 @@ export class EmployeeCharacter {
     const nz = p.z + (dz / dist) * step;
 
     // Basic collision: try full move, then slide along X, then along Z, else give up
-    const R = 0.28;
+    const R = 0.28 * this._scale;
     const blocked = (x, z) => (this.obstacles || []).some(o => Math.hypot(x - o.x, z - o.z) < o.r + R);
     if (!blocked(nx, nz)) { p.x = nx; p.z = nz; }
     else if (!blocked(nx, p.z)) { p.x = nx; }
@@ -1190,11 +1145,12 @@ export class EmployeeCharacter {
     const sit = this._sitAmt;
 
     // Typing bob (livelier when happy) + occasional hop; cheering = real jumping.
+    const s = this._scale || 1;
     const bob = this._burned ? 0 : Math.sin(time * 4 + seed * 1.7) * (0.008 * (0.6 + mood));
     let hop;
     if (cheering) hop = Math.abs(Math.sin(time * 11 + seed)) * 0.2;
     else hop = this._burned ? 0 : Math.pow(Math.max(0, Math.sin(time * 0.9 + seed * 2.3)), 16) * (0.10 + mood * 0.12);
-    this.root.position.y = baseY + bob + hop - 0.11 * sit;
+    this.root.position.y = baseY + (bob + hop - 0.11 * sit) * s;
 
     // Posture: burnout slumps hardest, stress/unhappiness slumps a little, cheering leans back.
     const stressSlump = (!this._burned && mood < 0.45) ? (0.45 - mood) * 0.5 : 0;

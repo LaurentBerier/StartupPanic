@@ -67,6 +67,41 @@ const PODCASTS  = ['All-In-ish', 'The Pivot Pod', 'Acquired-ish', 'My First Burn
 const VC_NAMES  = ['Chad Capital', 'Brandon @ a16f', 'Priya from Sequoyah', 'term sheet tina', 'softbanc partner', 'the lead investor'];
 const AI_NAMES  = ['Claudius', 'GPT-5o', 'Grokk', 'Sydney 2', 'TruthBot', 'Llama 4.5'];
 
+/*  GTA-style parody brands & people  woven into ambient chatter and used to
+    launder real RSS headlines into legally-distinct nonsense (see marketFeed.js). */
+const BRANDS = ['Googol', 'Facesmack', 'Amazoom', 'Applet', 'Nannoflix', 'Spootify', 'Tessler',
+  'Nvidnia', 'Microhard', 'Xitter', 'TikTac', 'Uberr', 'Airbmb', 'Redddit', 'Discórd', 'Slaqk',
+  'Zoöm', 'Coinballs', 'Robbinghood', 'DoorDosh', 'Instacrt', 'PayPaul', 'Snapchit', 'WhatsAppendix',
+  'OpenAyeAye', 'Anthropp', 'Palantere', 'Oråcle', 'Adobee', 'IntheHell', 'Qualcromm', 'Broadcumb',
+  'Salesfarce', 'Shipofy', 'Squarish', 'Strope', 'Dropbax', 'Figmma', 'Notionn', 'Slackk',
+  'Metta', 'Alphabot', 'Berkshire Halfaway', 'GoldenSacks', 'Morgan Stanknee', 'BlackRuck',
+  'JPMorgone', 'Wells Farto', 'Coinbawse', 'Binanceish', 'Doggecoin', 'Buttcoin', 'Etherreum'];
+/* Real megabrand -> parody, applied to laundered market headlines. Longest keys first at use-site. */
+const BRAND_SWAP = {
+  'Google': 'Googol', 'Alphabet': 'Alphabot', 'Facebook': 'Facesmack', 'Meta': 'Metta',
+  'Amazon': 'Amazoom', 'Apple': 'Applet', 'Netflix': 'Nannoflix', 'Spotify': 'Spootify',
+  'Tesla': 'Tessler', 'Nvidia': 'Nvidnia', 'Microsoft': 'Microhard', 'Twitter': 'Xitter',
+  'TikTok': 'TikTac', 'Uber': 'Uberr', 'Airbnb': 'Airbmb', 'Reddit': 'Redddit',
+  'Discord': 'Discórd', 'Slack': 'Slaqk', 'Zoom': 'Zoöm', 'Coinbase': 'Coinbawse',
+  'Robinhood': 'Robbinghood', 'DoorDash': 'DoorDosh', 'Instacart': 'Instacrt', 'PayPal': 'PayPaul',
+  'Snapchat': 'Snapchit', 'Snap': 'Snapp', 'OpenAI': 'OpenAyeAye', 'Anthropic': 'Anthropp',
+  'Palantir': 'Palantere', 'Oracle': 'Oråcle', 'Adobe': 'Adobee', 'Intel': 'IntheHell',
+  'Qualcomm': 'Qualcromm', 'Broadcom': 'Broadcumb', 'Salesforce': 'Salesfarce', 'Shopify': 'Shipofy',
+  'Stripe': 'Strope', 'Dropbox': 'Dropbax', 'Figma': 'Figmma', 'Bitcoin': 'Buttcoin',
+  'Ethereum': 'Etherreum', 'Dogecoin': 'Doggecoin', 'Binance': 'Binanceish', 'Goldman Sachs': 'GoldenSacks',
+  'Morgan Stanley': 'Morgan Stanknee', 'BlackRock': 'BlackRuck', 'JPMorgan': 'JPMorgone',
+  'Wells Fargo': 'Wells Farto', 'Berkshire Hathaway': 'Berkshire Halfaway', 'Nasdaq': 'Nazdack',
+  'Wall Street': 'Wail Street', 'S&P 500': 'the S&P 4.99', 'Fed': 'the Feddish', 'SEC': 'the S.E.Cish',
+};
+/** Launder a real headline into a legally-distinct parody by swapping megabrand names. */
+function launderBrands(text) {
+  let t = '' + text;
+  for (const real of Object.keys(BRAND_SWAP).sort((a, b) => b.length - a.length)) {
+    t = t.replace(new RegExp('\\b' + real.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g'), BRAND_SWAP[real]);
+  }
+  return t;
+}
+
 const X_HANDLES = ['@hustleharder', '@vc_visionary', '@growth_pilled', '@touch_grass_ceo', '@series_z',
   '@founder_mode', '@pre_revenue_pat', '@disrupt_daddy', '@chief_vibes_officer', '@bagholder_betty',
   '@ngmi_or_wagmi', '@exit_liquidity', '@10x_or_cry', '@runway_anxiety', '@term_sheet_tina',
@@ -345,6 +380,21 @@ const VIPS = [
   { name: 'Sheryl Sandbag', handle: '@sheryls', tag: 'lean in, then lean out' },
   { name: 'Travis Kalanick-ish', handle: '@travisk', tag: 'move fast, retain counsel' },
   { name: 'Adam Neumannish', handle: '@adamn', tag: 'elevating the world’s consciousness' },
+  { name: 'Warren Buffered', handle: '@warrenb', tag: 'value investor, nap enthusiast' },
+  { name: 'Cathie Woodwind', handle: '@cathiew', tag: 'to the moon, then the sun' },
+  { name: 'Jamie Diamonn', handle: '@jamied', tag: 'bank guy, ominous vibes' },
+  { name: 'Larry Pagefault', handle: '@larryp', tag: 'retired, allegedly' },
+  { name: 'Tim Cooked', handle: '@timcooked', tag: 'ecosystem, courage, dongles' },
+  { name: 'Reid Hoffmanish', handle: '@reidh', tag: 'connections you can’t afford' },
+  { name: 'Chamath Palihaboomer', handle: '@chamath', tag: 'SPAC whisperer' },
+  { name: 'Gary Vaynerschmuck', handle: '@garyv', tag: 'hustle until you hallucinate' },
+  { name: 'Naval Ravikanti', handle: '@naval', tag: 'wealth is a tweet you can’t delete' },
+  { name: 'Balaji Srinivasant', handle: '@balajis', tag: 'the network state will see you now' },
+  { name: 'Brian Armstrongish', handle: '@briana', tag: 'not a security, allegedly' },
+  { name: 'Changpeng Zhaoish', handle: '@cz_ish', tag: 'funds are safu (they were not)' },
+  { name: 'Sam Bankrun-Fraud', handle: '@sbf_ish', tag: 'effective altruist, formerly' },
+  { name: 'Masayoshi Sonn', handle: '@masason', tag: 'vision so big it lost $40B' },
+  { name: 'Sundar Pikachu', handle: '@sundarp2', tag: 'i choose you (for layoffs)' },
 ];
 const VIP_TAKES = [
   'just tried {C}. i could rebuild it in a weekend. i won’t, but i could.',
@@ -371,8 +421,69 @@ function vipPost(snap) {
   return biArticle(snap, vip.name + ' calls {C} “the ' + (Math.random() < 0.5 ? 'future' : 'most overrated thing') + ' in {cat}”; markets that do not involve {C} move anyway', { section: 'VOICES', outlet: rand(OUTLETS), tone: 'neutral' });
 }
 
+/*
+   COMBINATORIAL ambient  mad-lib generators with deep word banks, so the feed
+   is effectively never the same twice. Every slot is filled independently, and
+   parody BRANDS get name-dropped so it reads like a GTA radio ad break.
+*/
+const CB = {
+  vibe:   ['unhinged', 'delusional', 'aspirational', 'legally distinct', 'venture-backed', 'pre-revenue', 'terminally online', 'burnrate-pilled', 'grindset-poisoned', 'so back', 'over', 'cooked', 'locked in', 'down horrendous'],
+  thing:  ['a spreadsheet', 'a Google Form', 'a Notion page', 'a group chat', 'a pitch deck', 'a Slaqk channel', 'one tired intern named Greg', 'a confident tone of voice', 'vibes', 'a landing page', 'a waitlist', 'a Figmma file nobody opened'],
+  metric: ['MRR', 'runway', 'burn rate', 'DAUs', 'the north star metric', 'the cap table', 'engagement', 'churn', 'the valuation', 'the vesting cliff', 'CAC', 'the moat'],
+  verb:   ['pivoted to', 'rugged into', 'rebranded as', 'quietly deleted', 'A/B tested', 'monetized', 'sunset', 'disrupted', 'over-indexed on', 'went all-in on', 'quiet-quit'],
+  place:  ['Palo Alto', 'a WeWork', 'a garage', 'the group chat', 'my LinkedIn', 'a beanbag', 'the metaverse', 'a Discórd server', 'an all-hands', 'the incident channel'],
+  feel:   ['and i am not normal about it', 'against my will', 'and my therapist agrees', 'for tax reasons', 'and i have questions', 'and the SEC does too', 'unfollowing reality brb', 'send help', 'we ride at dawn', 'no notes'],
+};
+const CB_TEMPLATES = [
+  'breaking: {B} {verb} {thing}. shares of {B2} move anyway.',
+  '{C} is basically {B} but for {thing}. {feel}.',
+  'hot take: {metric} is just {thing} with a personality disorder',
+  'someone at {B} {verb} {thing} in {place} and called it a moat',
+  'invested my {metric} into {B}. the {metric} is {vibe} now. {feel}',
+  '{B} raised nine figures to put {thing} in {place}. we are all {vibe}.',
+  'my standup is {N2} people explaining why {thing} isn’t done. {feel}.',
+  'the {cat} space is {vibe}. {B} just {verb} {thing}. {feel}',
+  '{B} and {B2} are in a bidding war for {thing}. {metric} not included.',
+  'normalize {verb.ing} {thing} and apologizing in {place} later',
+  'they {verb} the {metric} at {B} and called it velocity. {feel}.',
+  '{B} laid off half of {place} and shipped {thing}. stock up {N3}%.',
+  'genuinely cannot tell if {B} is a cult or a SaaS. {feel}.',
+  'day {N} of my {vibe} journey: still just refreshing {B}’s cap table',
+  'the {B} intern {verb} {thing} and got promoted. we live in {place}.',
+];
+function ing(v) { // crude gerund for "normalize {verb.ing}"
+  if (v.endsWith('to')) v = v.slice(0, -3);
+  if (v.endsWith('e')) return v.slice(0, -1) + 'ing';
+  return v + 'ing';
+}
+function comboText(snap) {
+  const t = rand(CB_TEMPLATES);
+  const b1 = rand(BRANDS), b2 = rand(BRANDS.filter(x => x !== b1));
+  return t
+    .replace(/\{verb\.ing\}/g, ing(rand(CB.verb)))
+    .replace(/\{vibe\}/g, () => rand(CB.vibe))
+    .replace(/\{thing\}/g, () => rand(CB.thing))
+    .replace(/\{metric\}/g, () => rand(CB.metric))
+    .replace(/\{verb\}/g, () => rand(CB.verb))
+    .replace(/\{place\}/g, () => rand(CB.place))
+    .replace(/\{feel\}/g, () => rand(CB.feel))
+    .replace(/\{B2\}/g, b2).replace(/\{B\}/g, b1)
+    .replace(/\{N2\}/g, ri(3, 14)).replace(/\{N3\}/g, ri(2, 40)).replace(/\{N\}/g, ri(2, 900))
+    .replace(/\{cat\}/g, snap.cat || 'tech')
+    .replace(/\{C\}/g, snap.C || 'the startup');
+}
+function comboPost(snap) {
+  const r = Math.random();
+  const txt = comboText(snap);
+  if (r < 0.5) return biX(snap, txt, { tone: snap.hype > 60 ? 'pos' : snap.trust < 40 ? 'neg' : 'neutral' });
+  if (r < 0.72) return biReddit(snap, txt, { sub: rand(SUBS), tone: 'neutral' });
+  if (r < 0.9) return biArticle(snap, txt, { section: rand(SECTIONS), tone: 'neutral' });
+  return biLinkedIn(snap, txt, { name: 'A Thought Leader', tone: 'neutral' });
+}
+
 function ambientItem(snap) {
   const ctx = snap;
+  if (Math.random() < 0.44) return comboPost(snap);
   if (Math.random() < 0.17) return vipPost(snap);
   const r = Math.random();
   // Internal Slack chatter occasionally, scaled to team size.
@@ -426,7 +537,22 @@ function freshEngine() {
     ticker: [],            // rolling headline texts for the top ticker
     idc: 0,
     arcCount: {},          // de-dupe rapid identical arcs
+    seen: [],              // rolling fingerprints of recent post text (no repeats, even w/ different author)
   };
+}
+
+/* Fingerprint a post by its wording only, so the SAME message never reappears
+   attributed to a different person. Ignores numbers/handles/punctuation. */
+function fingerprint(text) {
+  return ('' + text).toLowerCase().replace(/[0-9]+/g, '#').replace(/[^a-z#]+/g, ' ').trim().slice(0, 90);
+}
+function seenRecently(text) {
+  return E.seen.indexOf(fingerprint(text)) !== -1;
+}
+function remember(text) {
+  const fp = fingerprint(text);
+  E.seen.push(fp);
+  if (E.seen.length > 40) E.seen.shift();
 }
 let E = freshEngine();
 
@@ -668,7 +794,14 @@ export function tickStory(state, dt) {
   const gap = snap.live ? rf(3.5, 6.5) : rf(15, 24);
   const quietEnough = E.ts - E.lastBeat > 2.2; // don't step on an active arc beat
   if (quietEnough && E.ts - E.lastEmit > gap) {
-    const item = ambientItem(snap);
+    // Retry a few times so the exact same wording never reappears (even under a
+    // different author). Deep combinatorial banks make a fresh line easy to find.
+    let item = null;
+    for (let i = 0; i < 6; i++) {
+      const cand = ambientItem(snap);
+      if (cand && !seenRecently(cand.text)) { item = cand; break; }
+      item = cand;
+    }
     if (item) { emit(state, item, 'ambient'); emitted.push(item); }
   }
 
@@ -714,6 +847,7 @@ function emit(state, item, arcKey) {
   E.lastEmit = E.ts;
   // update shared memory for cross-references
   if (item) {
+    remember(item.text);
     if (arcKey === 'hire' && item.head) E.recent.employee = (item.text.match(/\b[A-Z][a-z]+\b/) || [])[0] || E.recent.employee;
     if (item.source === 'tc') { E.recent.headline = item.text; pushTicker(item.text); }
   }
@@ -724,13 +858,44 @@ function esc(s) {
   return ('' + s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/* Fake engagement numbers that feel platform-real: mostly small, sometimes viral. */
+function fakeCount() {
+  const r = Math.random();
+  const n = r < 0.6 ? 2 + Math.floor(Math.random() * 40)
+    : r < 0.9 ? 50 + Math.floor(Math.random() * 900)
+    : 1000 + Math.floor(Math.random() * 40000);
+  return n;
+}
+function fmtCount(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n); }
+
+/* One delegated listener for the reaction buttons on every feed item. */
+let _feedReactionsWired = false;
+function wireFeedReactions() {
+  if (_feedReactionsWired || !hasDOM) return;
+  const feed = document.getElementById('social-feed');
+  if (!feed) return;
+  _feedReactionsWired = true;
+  feed.addEventListener('click', (e) => {
+    const btn = e.target.closest('.fi-react');
+    if (!btn) return;
+    e.stopPropagation();
+    if (btn.classList.contains('reacted')) return;
+    btn.classList.add('reacted');
+    const cnt = btn.querySelector('span');
+    if (cnt) cnt.textContent = fmtCount((Number(btn.dataset.n) || 0) + 1);
+    window.dispatchEvent(new CustomEvent('feed-react', { detail: { kind: btn.dataset.react } }));
+  });
+}
+
 function renderItem(item) {
   const feed = document.getElementById('social-feed');
   if (!feed || !item) return;
+  wireFeedReactions();
   const el = document.createElement('div');
-  el.className = `feed-item fi ${item.srcCls || ''} fi-tone-${item.tone || 'neutral'}`;
+  el.className = `feed-item fi fi-enter ${item.srcCls || ''} fi-tone-${item.tone || 'neutral'}${item.marketLive ? ' fi-market' : ''}${item.cta ? ' fi-offer' : ''}`;
   if (item.arcColor) el.style.setProperty('--arc', item.arcColor);
   if (item.arcId) el.dataset.arc = item.arcId;
+  if (item.cta && item.cta.pid) el.dataset.pid = item.cta.pid; // whole offer card is clickable
 
   const h = item.head || {};
   const useIcon = SRC_ICON[item.source] && h.avatarCls !== 'fi-vip' && h.avatarCls !== 'fi-ai-av';
@@ -743,6 +908,7 @@ function renderItem(item) {
   const meta      = item.meta   ? `<div class="fi-meta">${esc(item.meta)}</div>` : '';
   const delta     = item.delta  ? `<div class="fi-delta ${item.delta.tone || ''}">${esc(item.delta.text)}</div>` : '';
 
+  const nLike = fakeCount(), nRt = Math.floor(nLike * (0.1 + Math.random() * 0.4)), nCm = Math.floor(nLike * (0.05 + Math.random() * 0.3));
   el.innerHTML = `
     <span class="fi-spine"></span>
     <div class="fi-body">
@@ -751,9 +917,15 @@ function renderItem(item) {
       <div class="fi-text">${esc(item.text)}</div>
       <div class="fi-foot">${meta}${delta}</div>
       ${item.cta ? `<div class="fi-cta-row"><button class="fi-cta" data-pid="${esc(item.cta.pid)}">${esc(item.cta.label)} &rarr;</button></div>` : ''}
+      <div class="fi-react-row">
+        <button class="fi-react" data-react="like" data-n="${nLike}" title="Like it. This helps, emotionally.">❤️ <span>${fmtCount(nLike)}</span></button>
+        <button class="fi-react" data-react="repost" data-n="${nRt}" title="Repost to your 3 followers">🔁 <span>${fmtCount(nRt)}</span></button>
+        <button class="fi-react" data-react="reply" data-n="${nCm}" title="Reply 'this'">💬 <span>${fmtCount(nCm)}</span></button>
+      </div>
     </div>`;
   feed.insertBefore(el, feed.firstChild);
-  while (feed.children.length > 18) feed.removeChild(feed.lastChild);
+  // Keep it rolling: retain a long scrollback so the feed never visually collapses.
+  while (feed.children.length > 60) feed.removeChild(feed.lastChild);
 }
 
 /** Render an openable proposal as a feed card (presentation only; effects live in gameLogic). */
@@ -767,6 +939,109 @@ export function pushProposalCard(proposal) {
     tone: 'neutral',
     cta: { label: proposal.cta || 'Review proposal', pid: proposal.pid },
   });
+}
+
+/*  Real market news, laundered into legally-distinct comedy  */
+/* Deep banks so the "comment" on every headline is effectively never the same. */
+const MKT_REACTORS = ['the group chat', 'my portfolio', 'r/wallstreetbets', 'a VC in a Patagonia vest',
+  'my uncle who "does crypto"', 'the finance bros', 'every guy on LinkedIn', 'my broker (weeping)',
+  'the trading algo', 'CNBC (yelling)', 'a hedge fund intern', 'fin-twit', 'my 401k', 'the bag holders',
+  'the perma-bulls', 'the perma-bears', 'the day traders', 'my financial advisor', 'the quants', 'boomer money',
+  'the retail crowd', 'the short sellers', 'my rent money', 'the options guys', 'the value investors'];
+const MKT_TAKES = ['priced in', 'NOT priced in, actually', 'extremely bullish', 'bearish and afraid',
+  'a nothingburger', 'a red flag shaped like a green candle', 'the top', 'the bottom', 'why we are so back',
+  'why it is so over', 'a generational buying opportunity', 'a generational selling opportunity', 'fine, actually',
+  'the end of the world', 'a rounding error', 'unprecedented (again)', 'literally nothing', 'literally everything',
+  'just a Tuesday', 'deeply normal', 'a psyop', 'financial advice (it is not)', 'transitory', 'structural', 'noise'];
+const MKT_MOVES = ['did the opposite of whatever you hoped', 'dumped 9% out of spite', 'mooned then rugged before lunch',
+  'went sideways aggressively', 'hit an all-time high and low on the same day', 'flatlined dramatically',
+  'gapped up on no news', 'cratered on good news', 'pumped on a single tweet', 'halted for "volatility"',
+  'did a little number for the analysts', 'staged a comeback nobody asked for'];
+const MKT_COPES = ['this is fine', 'i am financially and emotionally exposed', 'zoom out', 'thoughts and prayers to my calls',
+  'buy the dip (i am the dip)', 'we ride at dawn', 'i only invest in vibes now', 'my index fund cannot see this',
+  'diamond hands, paper stomach', 'this is why i journal', 'unsubscribing from money', 'HODL and pray',
+  'i will simply not look at it', 'the S&P 4.99 will save us', 'touching grass, financially'];
+const MKT_COMMENT_SHAPES = [
+  '{reactor} says this is {take}.',
+  '{reactor} calls it {take}; {B} calls it a Tuesday.',
+  '{B} shares {move}.',
+  '{reactor}: "{cope}".',
+  'analysts are {take}; {reactor} is just {cope}.',
+  'somewhere a founder is turning this into a pitch deck titled "{take}".',
+  '{reactor} lost money on this before the headline finished loading.',
+  'experts say {take}; {reactor} says {cope}.',
+  '{B} issued a statement that was, and i quote, {take}.',
+  'nobody on the desk knows what it means, but {reactor} is {cope}.',
+  'this is {take} and {reactor} will not be taking questions.',
+  '{reactor} screenshotted it, added a rocket emoji, and called it "DD".',
+  '{reactor} is {take} about it. {B} declined to comment and then commented anyway.',
+];
+const MKT_REPLY_SHAPES = [
+  'so {B} is {take} now? cool. cool cool cool. anyway, {cope}.',
+  'reading this headline like it personally owes me money. {cope}.',
+  'my read: {take}. my portfolio\'s read: {cope}.',
+  'imagine being {reactor} right now. i AM {reactor}. {cope}.',
+  '{take}? in THIS economy? {cope}.',
+  'the {reactor} discourse on this is more volatile than the asset.',
+  'bold of the market to do that while i have {cope} going on.',
+  'checked my {B} bag, closed the app, opened it again. {cope}.',
+  'everyone acting like this is {take}. it is, at most, {take2}.',
+  '{reactor} calling this {take} is the most {reactor} thing ever. {cope}.',
+  'not me refreshing {B} at 3am going "{cope}". we are unwell.',
+  'take a shot every time someone says "{take}" about this. you will not survive.',
+];
+function _mfill(shape) {
+  const b = rand(BRANDS);
+  return shape
+    .replace(/\{reactor\}/g, () => rand(MKT_REACTORS))
+    .replace(/\{take2\}/g, () => rand(MKT_TAKES))
+    .replace(/\{take\}/g, () => rand(MKT_TAKES))
+    .replace(/\{move\}/g, () => rand(MKT_MOVES))
+    .replace(/\{cope\}/g, () => rand(MKT_COPES))
+    .replace(/\{B\}/g, b);
+}
+/* Render one commenter's reaction to the market news as a threaded reply post. */
+function pushMarketReply() {
+  const txt = _mfill(rand(MKT_REPLY_SHAPES));
+  if (seenRecently(txt)) return;
+  const r = Math.random();
+  const item = r < 0.6
+    ? biX(snapshotLite(), txt, { tone: 'neutral' })
+    : biReddit(snapshotLite(), txt, { sub: rand(['wallstreetbets', 'stocks', 'Buttcoin', 'investing']), tone: 'neutral' });
+  item.thread = 're: the markets';
+  item.arcColor = 'var(--color-success)';
+  remember(txt);
+  if (hasDOM) renderItem(item);
+}
+/* Minimal ctx for market reply generators (they don't need full run state). */
+function snapshotLite() { return { C: 'the market', cat: 'markets', _hot: false, hype: 50, trust: 50 }; }
+/**
+ * Inject a REAL market/tech headline, laundered (brand names swapped) and given a
+ * fresh random comment, plus 1-2 random reaction replies. Called by marketFeed.js.
+ * No-ops safely. raw: { title, source?, link? }
+ */
+export function pushMarketItem(raw) {
+  if (!raw || !raw.title) return null;
+  let h = launderBrands(String(raw.title).replace(/\s+/g, ' ').trim());
+  if (h.length > 116) h = h.slice(0, 113).replace(/\s+\S*$/, '') + '…';
+  const text = h + ' — ' + _mfill(rand(MKT_COMMENT_SHAPES));
+  if (seenRecently(text)) return null; // never repeat a headline+comment
+  const item = baseItem('tc', 'src-tc',
+    { primary: raw.source ? launderBrands(raw.source) : rand(OUTLETS), secondary: 'MARKETS · LIVE', avatar: 'N', avatarCls: '' },
+    text, { tone: 'neutral' });
+  item.marketLive = true;
+  item.arcColor = 'var(--color-success)'; // green "live markets" spine (matches .fi-market)
+  E.lastEmit = E.ts;
+  remember(text);
+  E.recent.headline = text; pushTicker(text);
+  if (hasDOM) renderItem(item);
+  // Pile the comments on: 1 reply almost always, a 2nd sometimes  staggered so
+  // they read like people reacting to the news as it lands.
+  if (hasDOM) {
+    setTimeout(() => pushMarketReply(), 1500 + Math.random() * 2500);
+    if (Math.random() < 0.5) setTimeout(() => pushMarketReply(), 4000 + Math.random() * 4000);
+  }
+  return item;
 }
 
 /* Simple, original brand-style glyphs (white on the source-colored avatar). */

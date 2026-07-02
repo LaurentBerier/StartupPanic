@@ -41,6 +41,12 @@ function icon(name, className = 'ui-icon') {
   return `<span class="${className}">${UI_ICONS[name] || UI_ICONS.product}</span>`;
 }
 
+// Emoji icon chip used on submenu cards (facilities, research, loans, features).
+function emojiIcon(em, fallbackName = 'product') {
+  if (!em) return `<div class="build-icon">${icon(fallbackName)}</div>`;
+  return `<div class="build-icon build-icon-emoji">${em}</div>`;
+}
+
 function productIconName(idea) {
   const map = { ai: 'ai', crypto: 'crypto', social: 'social', delivery: 'delivery', subscription: 'subscription', wellness: 'wellness' };
   return map[productCategory(idea)] || 'product';
@@ -402,6 +408,39 @@ function onboardingStepData(state) {
   ];
 }
 
+// For each tutorial step, the HUD elements the player must press next.
+// The glow follows the path: category button -> submenu action button.
+const TUTO_TARGETS = {
+  desk:     ['.cat-btn[data-cat="build"]', '#btn-build'],
+  computer: ['.cat-btn[data-cat="build"]', '#btn-build'],
+  server:   ['.cat-btn[data-cat="build"]', '#btn-build'],
+  sit:      [],   // guided by the 3D desk marker arrow
+  develop:  ['.cat-btn[data-cat="make"]', '#btn-develop'],
+};
+let _tutoStepKey = null;
+
+function setTutorialFocus(stepKey) {
+  if (stepKey === _tutoStepKey) return;
+  _tutoStepKey = stepKey;
+  document.querySelectorAll('.tuto-focus').forEach(el => el.classList.remove('tuto-focus'));
+  if (!stepKey) return;
+  for (const sel of TUTO_TARGETS[stepKey] || []) {
+    const el = document.querySelector(sel);
+    if (el) el.classList.add('tuto-focus');
+  }
+}
+
+/** Glow applied inside the Buy modal so the tutorial points at the right card. */
+export function applyBuildModalTutorialFocus(state) {
+  if (_tutoStepKey === 'desk') {
+    document.getElementById('btn-buy-desk')?.classList.add('tuto-focus');
+  } else if (_tutoStepKey === 'computer') {
+    document.getElementById('btn-buy-computer')?.classList.add('tuto-focus');
+  } else if (_tutoStepKey === 'server') {
+    document.querySelector('#build-options .srv-buy')?.classList.add('tuto-focus');
+  }
+}
+
 function updateOnboarding(state) {
   if (!hud.onboardingCard || !hud.onboardingSteps) return;
   const steps = onboardingStepData(state);
@@ -409,12 +448,14 @@ function updateOnboarding(state) {
   const startedProduct = getActiveProducts(state).length > 0 || state.readyProducts.length > 0 || state.shippedProducts.length > 0;
   if (state.live || startedProduct || complete) {
     hud.onboardingCard.classList.add('hidden');
+    setTutorialFocus(null);
     const obj = document.getElementById('objectives-panel');
     if (obj) obj.classList.add('show');   // tutorial done -> reveal objectives
     return;
   }
 
   const current = steps.find(s => !s.done) || steps[steps.length - 1];
+  setTutorialFocus(current.key);
   hud.onboardingCard.classList.remove('hidden');
   if (hud.onboardingTitle) hud.onboardingTitle.textContent = 'Set up the empty garage';
   if (hud.onboardingNext) hud.onboardingNext.textContent = current.hint;
@@ -789,7 +830,7 @@ export function openHireModal(state, onHire, onClose) {
     card.className = 'candidate-card';
     card.innerHTML = `
       <div class="candidate-header">
-        <span class="candidate-icon">${icon('person')}</span>
+        <span class="candidate-icon candidate-icon-emoji">${{ eng: '👩‍💻', design: '🎨', growth: '📣' }[cand.role] || '🧑‍💼'}</span>
         <div>
           <div class="candidate-name">${cand.name}</div>
           <div class="candidate-role">${role.label}</div>
@@ -845,7 +886,7 @@ export function openBuildModal(state, onBuy, onClose) {
   list.innerHTML = `
     <div class="build-section-label">STARTUP ESSENTIALS</div>
     <div class="build-card">
-      <div class="build-icon">${icon('desk')}</div>
+      ${emojiIcon('🪑', 'desk')}
       <div class="build-info">
         <div class="build-name">DESK</div>
         <div class="build-desc">${deskDesc}</div>
@@ -855,7 +896,7 @@ export function openBuildModal(state, onBuy, onClose) {
       </button>
     </div>
     <div class="build-card ${desksUsed === 0 || noComputer === 0 ? 'build-locked' : ''}">
-      <div class="build-icon">${icon('computer')}</div>
+      ${emojiIcon('🖥️', 'computer')}
       <div class="build-info">
         <div class="build-name">COMPUTER</div>
         <div class="build-desc">${computerDesc}</div>
@@ -877,7 +918,7 @@ export function openBuildModal(state, onBuy, onClose) {
   const serverCard = document.createElement('div');
   serverCard.className = 'build-card' + (down > 0 && state.cash < CONFIG.SERVER_COST ? ' build-locked' : '') + (down === 0 ? ' build-owned' : '');
   serverCard.innerHTML = `
-    <div class="build-icon">${icon('server')}</div>
+    ${emojiIcon('🗄️', 'server')}
     <div class="build-info">
       <div class="build-name">SERVERS  ${working}/${CONFIG.NUM_RACKS} ONLINE</div>
       <div class="build-desc">${down > 0
@@ -932,7 +973,7 @@ export function openBuildModal(state, onBuy, onClose) {
         btn = `<button class="btn btn-primary btn-sm fac-buy" ${state.cash >= f.cost ? '' : 'disabled'}>${fmtMoney(f.cost)}</button>`;
       }
       card.innerHTML = `
-        <div class="build-icon">${icon(f.kind === 'Room' ? 'office' : 'tool')}</div>
+        ${emojiIcon(f.emoji, f.kind === 'Room' ? 'office' : 'tool')}
         <div class="build-info">
           <div class="build-name">${f.name} ${owned ? `<span class="accent-cyan"> Lv ${lvl}</span>` : ''}</div>
           <div class="build-desc">${f.desc}${f.upkeep ? ` <span class="build-upkeep">(${fmtMoney(f.upkeep * lvl)}/s upkeep)</span>` : ''}</div>
@@ -976,6 +1017,7 @@ export function openBuildModal(state, onBuy, onClose) {
     onClose();
   };
 
+  applyBuildModalTutorialFocus(state);
   modal.classList.remove('hidden');
 }
 
@@ -996,7 +1038,7 @@ export function openLoanModal(state, onTake, onClose) {
     const card = document.createElement('div');
     card.className = 'build-card';
     card.innerHTML = `
-      <div class="build-icon">${icon('cash')}</div>
+      ${emojiIcon(loan.emoji, 'cash')}
       <div class="build-info">
         <div class="build-name">${loan.name} <span class="accent-cyan">+${fmtMoney(loan.cash)} now</span></div>
         <div class="build-desc">${loan.desc}</div>
@@ -1062,7 +1104,7 @@ export function openResearchModal(state, onResearch, onClose) {
       else if (locked) btn = `<button class="btn btn-ghost btn-sm" disabled> LOCKED</button>`;
       else             btn = `<button class="btn btn-primary btn-sm res-buy" ${canAfford ? '' : 'disabled'}>${fmtMoney(node.cost)}</button>`;
       card.innerHTML = `
-        <div class="build-icon">${icon('spark')}</div>
+        ${emojiIcon(node.emoji, 'spark')}
         <div class="build-info">
           <div class="build-name">${node.name} ${done ? '<span class="accent-cyan"> researched</span>' : ''}</div>
           <div class="build-desc">${node.desc}${locked && reqNames ? ` <span class="build-upkeep">needs: ${reqNames}</span>` : ''}</div>
@@ -1107,6 +1149,41 @@ const DEV_EMOJI = [
 function emojiFor(label) { for (const [re, e] of DEV_EMOJI) if (re.test(label)) return e; return '✨'; }
 const SLIDER_EMOJI = { engineering: '🔧', infrastructure: '🏗️', marketing: '📣', compliance: '⚖️', magic: '✨' };
 
+// Extra app-defining choices. Each entry: display key, emoji, stat effects,
+// and a `blurb` fragment used to assemble the app summary.
+const MONETIZATION = [
+  { key: 'Freemium',        emoji: '🧀', eff: { mrr: 0.85, hype: 6,  scam: 0   }, blurb: 'free until you accidentally love it' },
+  { key: 'Subscriptions',   emoji: '🔁', eff: { mrr: 1.25, hype: 0,  scam: 4   }, blurb: 'billed monthly, cancellable via certified letter only' },
+  { key: 'Ads Everywhere',  emoji: '📺', eff: { mrr: 1.1,  hype: -4, ethical: -10 }, blurb: 'ad-supported, including inside your dreams' },
+  { key: 'Sell The Data',   emoji: '🕵️', eff: { mrr: 1.45, hype: -6, ethical: -22, scam: 14 }, blurb: 'monetized by selling telemetry to "a trusted partner"' },
+  { key: 'Enterprise Deals',emoji: '📠', eff: { mrr: 1.5,  hype: -8, dev: 1.2  }, blurb: 'sold via 9-month procurement calls with someone named Chad' },
+  { key: 'Tip Jar + Vibes', emoji: '🫙', eff: { mrr: 0.6,  hype: 12, absurdity: 0.3 }, blurb: 'funded entirely by guilt and a Ko-fi link' },
+];
+const PLATFORMS = [
+  { key: 'Mobile App',      emoji: '📱', eff: { dev: 1.0,  hype: 4  }, blurb: 'lives on your phone' },
+  { key: 'Browser Tab',     emoji: '🌐', eff: { dev: 0.85, hype: 0  }, blurb: 'lives in the 47th tab you never close' },
+  { key: 'Smart Fridge',    emoji: '🧊', eff: { dev: 1.2,  hype: 10, absurdity: 0.4 }, blurb: 'runs exclusively on smart fridges' },
+  { key: 'VR Headset',      emoji: '🥽', eff: { dev: 1.3,  hype: 14, mrr: 0.9 }, blurb: 'demands a headset and your dignity' },
+  { key: 'Voice Assistant', emoji: '🗣️', eff: { dev: 1.1,  hype: 6,  absurdity: 0.2 }, blurb: 'only listens when you least want it to' },
+  { key: 'Email, Somehow',  emoji: '📧', eff: { dev: 0.8,  hype: -4, mrr: 1.1 }, blurb: 'is technically just a very aggressive newsletter' },
+];
+const VIBES = [
+  { key: 'Cheerful',           emoji: '😊', eff: { hype: 4 },                    blurb: 'and it is SO happy for you' },
+  { key: 'Passive-Aggressive', emoji: '🙃', eff: { hype: 8, absurdity: 0.2 },    blurb: 'and it says "fine, whatever" when you log off' },
+  { key: 'Menacing',           emoji: '😈', eff: { hype: 10, ethical: -8 },      blurb: 'and it knows what you did' },
+  { key: 'Overly Apologetic',  emoji: '🙇', eff: { hype: 2, ethical: 6 },        blurb: 'and it apologizes before every notification' },
+  { key: 'Corporate',          emoji: '👔', eff: { mrr: 1.1, hype: -6 },         blurb: 'and it circles back per its last email' },
+  { key: 'Unhinged',           emoji: '🤪', eff: { hype: 14, scam: 8, absurdity: 0.5 }, blurb: 'and at 2am it starts posting on its own' },
+];
+
+// Assemble the satirical elevator pitch shown live on the generated card.
+function appSummary(selection, monet, plat, vibe) {
+  const ind = selection.industry;
+  const aud = selection.audience.toLowerCase();
+  return `${selection.name.trim() || 'This app'} is a ${selection.buzzword}-powered ${ind} product for ${aud}. `
+    + `It ${plat.blurb}, is ${monet.blurb}, ${vibe.blurb}.`;
+}
+
 export function openDevelopModal(state, onPick, onClose) {
   const modal = document.getElementById('develop-modal');
   const list  = document.getElementById('product-choice-list');
@@ -1140,7 +1217,12 @@ export function openDevelopModal(state, onPick, onClose) {
   const tier = getProductTier ? getProductTier(state) : 0;
 
   const allocation = { engineering: 2, marketing: 2, magic: 2, compliance: 2, infrastructure: 2 };
-  const selection = { industry: industries[0].key, buzzword: buzzwords[1], audience: audiences[3], name: '', tagline: '' };
+  const selection = {
+    industry: industries[0].key, buzzword: buzzwords[1], audience: audiences[3],
+    monetize: MONETIZATION[0].key, platform: PLATFORMS[0].key, vibe: VIBES[0].key,
+    name: '', tagline: '',
+  };
+  const pick = (arr, key) => arr.find(x => x.key === key) || arr[0];
   const powerSafe = Math.max(getTeamDevPower(state), 0.1);
   const allocationTotal = () => Object.values(allocation).reduce((s, v) => s + v, 0);
 
@@ -1159,18 +1241,29 @@ export function openDevelopModal(state, onPick, onClose) {
     const magic = allocation.magic / total, compliance = allocation.compliance / total, infra = allocation.infrastructure / total;
     const bigBuyer = ['Investors', 'Governments', 'Militaries', 'Megacorps', 'Nations', 'Billionaires', 'Agencies', 'Coalitions', 'Pharma', 'Defense'].includes(selection.audience);
     const audienceMult = bigBuyer ? 1.25 : 1;
+    const monet = pick(MONETIZATION, selection.monetize);
+    const plat  = pick(PLATFORMS, selection.platform);
+    const vibe  = pick(VIBES, selection.vibe);
+    const mrrMult = (monet.eff.mrr ?? 1) * (plat.eff.mrr ?? 1) * (vibe.eff.mrr ?? 1);
+    const devMult = (monet.eff.dev ?? 1) * (plat.eff.dev ?? 1) * (vibe.eff.dev ?? 1);
+    const hypeAdd = (monet.eff.hype ?? 0) + (plat.eff.hype ?? 0) + (vibe.eff.hype ?? 0);
+    const ethAdd  = (monet.eff.ethical ?? 0) + (plat.eff.ethical ?? 0) + (vibe.eff.ethical ?? 0);
+    const scamAdd = (monet.eff.scam ?? 0) + (plat.eff.scam ?? 0) + (vibe.eff.scam ?? 0);
+    const absAdd  = (monet.eff.absurdity ?? 0) + (plat.eff.absurdity ?? 0) + (vibe.eff.absurdity ?? 0);
     return {
       name: selection.name.trim() || 'Untitled',
       desc: selection.tagline,
+      summary: appSummary(selection, monet, plat, vibe),
       industry: selection.industry,
+      monetize: monet.key, platform: plat.key, vibe: vibe.key,
       era: era.id,
       tier,
-      devPoints: Math.round((48 + eng * 38 + magic * 26 + infra * 18) * era.devMult),
-      mrr: Math.round((210 + marketing * 240 + infra * 220 + magic * 120) * audienceMult * era.mrrMult),
-      hype: Math.round(12 + marketing * 30 + magic * 20),
-      absurdity: 1.15 + magic * 1.1 + marketing * 0.25,
-      ethical: Math.round(35 + compliance * 45 - magic * 16),
-      scam: Math.round(16 + magic * 42 - compliance * 24),
+      devPoints: Math.round((48 + eng * 38 + magic * 26 + infra * 18) * era.devMult * devMult),
+      mrr: Math.round((210 + marketing * 240 + infra * 220 + magic * 120) * audienceMult * era.mrrMult * mrrMult),
+      hype: Math.max(4, Math.round(12 + marketing * 30 + magic * 20 + hypeAdd)),
+      absurdity: 1.15 + magic * 1.1 + marketing * 0.25 + absAdd,
+      ethical: Math.round(35 + compliance * 45 - magic * 16 + ethAdd),
+      scam: Math.max(0, Math.round(16 + magic * 42 - compliance * 24 + scamAdd)),
       ambition: 1,
       devAllocation: { ...allocation },
     };
@@ -1200,10 +1293,10 @@ export function openDevelopModal(state, onPick, onClose) {
         <div class="lab-card-grid">
           ${items.map(item => {
             const label = typeof item === 'string' ? item : item.key;
-            const color = typeof item === 'string' ? '#8B93A7' : item.color;
-            const iconText = typeof item === 'string' ? item.slice(0, 2).toUpperCase() : item.icon;
+            const color = (typeof item === 'object' && item.color) ? item.color : '#8B93A7';
+            const em = (typeof item === 'object' && item.emoji) ? item.emoji : emojiFor(label);
             return `<button class="lab-choice ${value === label ? 'selected' : ''}" data-lab-key="${key}" data-lab-value="${escapeAttr(label)}" style="--lab-color:${color}">
-              <span class="lab-emoji">${emojiFor(label)}</span><strong>${label}</strong>
+              <span class="lab-emoji">${em}</span><strong>${label}</strong>
             </button>`;
           }).join('')}
         </div>
@@ -1213,6 +1306,9 @@ export function openDevelopModal(state, onPick, onClose) {
       ${cardGroup('1. 🏭 Industry', industries, selection.industry, 'industry')}
       ${cardGroup('2. 💬 Buzzword', buzzwords, selection.buzzword, 'buzzword')}
       ${cardGroup('3. 🎯 Audience', audiences, selection.audience, 'audience')}
+      ${cardGroup('4. 💸 Monetization', MONETIZATION, selection.monetize, 'monetize')}
+      ${cardGroup('5. 📦 Platform', PLATFORMS, selection.platform, 'platform')}
+      ${cardGroup('6. 🎭 App Personality', VIBES, selection.vibe, 'vibe')}
       <div class="generated-product-card">
         <div class="gen-head">
           <span class="gen-brand">${brandLogoSVG(productBrand(selection.name, selection.industry), 52)}</span>
@@ -1223,6 +1319,10 @@ export function openDevelopModal(state, onPick, onClose) {
           <button class="gen-dice" title="Suggest another name">&#9860;</button>
         </div>
         <div class="tier-badge">ERA: ${era.name}${PRODUCT_ERAS[eraIdx + 1] ? ` &middot; next: ${PRODUCT_ERAS[eraIdx + 1].name} at ${PRODUCT_ERAS[eraIdx + 1].reqProducts} shipped` : ' &middot; the final frontier'}</div>
+        <div class="gen-summary">
+          <span class="gen-summary-label">📋 THE PITCH, ALLEGEDLY</span>
+          <div class="gen-summary-text">${escapeAttr(idea.summary)}</div>
+        </div>
         <div class="allocation-budget">Build points <strong>${allocationTotal()}/10</strong></div>
         <div class="dev-slider-panel">
           ${[
@@ -1294,6 +1394,9 @@ export function openDevelopModal(state, onPick, onClose) {
       selection.industry = industries[Math.floor(Math.random() * industries.length)].key;
       selection.buzzword = buzzwords[Math.floor(Math.random() * buzzwords.length)];
       selection.audience = audiences[Math.floor(Math.random() * audiences.length)];
+      selection.monetize = MONETIZATION[Math.floor(Math.random() * MONETIZATION.length)].key;
+      selection.platform = PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)].key;
+      selection.vibe     = VIBES[Math.floor(Math.random() * VIBES.length)].key;
       regenName();
       renderChoices();
     };
@@ -1333,6 +1436,7 @@ export function openLaunchModal(state, onLaunch, onClose) {
         ${productGraphic(p.idea)}
         <div class="candidate-name">${p.idea.name}</div>
         <div class="product-tagline">${p.idea.desc}</div>
+        ${p.idea.summary ? `<div class="product-summary">${escapeAttr(p.idea.summary)}</div>` : ''}
         <div class="product-stats">
           <span class="accent-cyan">+${fmtMoney(p.idea.mrr)}/s MRR</span> 
           <span class="accent-magenta">Hype burst</span> 
@@ -1403,7 +1507,7 @@ export function openProductModal(state, handlers, onClose) {
         <div class="roadmap-row">
           <span>${activeFeature ? `${activeFeature.name}: ${Math.floor((activeFeature.progress || 0) / activeFeature.dev * 100)}%` : queue.length ? `${queue.length} queued` : 'Roadmap empty'}</span>
           <select class="feature-select">
-            ${FEATURE_OPTIONS.map(f => `<option value="${f.id}">${f.name} - ${fmtMoney(f.cost)}</option>`).join('')}
+            ${FEATURE_OPTIONS.map(f => `<option value="${f.id}">${f.emoji ? f.emoji + ' ' : ''}${f.name} - ${fmtMoney(f.cost)}</option>`).join('')}
           </select>
           <button class="btn btn-primary btn-sm queue-feature">Queue Feature</button>
         </div>

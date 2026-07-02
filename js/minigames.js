@@ -35,6 +35,26 @@ function freshModal(id) {
   return m;
 }
 
+/** Juice: spawn a floating emoji burst + score pop at (x,y) inside container. */
+function burstAt(container, x, y, emoji = '💥', text = '') {
+  if (!container) return;
+  const b = document.createElement('span');
+  b.className = 'mg-burst';
+  b.style.left = x + 'px'; b.style.top = y + 'px';
+  b.textContent = emoji;
+  container.appendChild(b);
+  setTimeout(() => b.remove(), 650);
+  if (text) {
+    const p = document.createElement('span');
+    p.className = 'mg-pop';
+    p.style.left = x + 'px'; p.style.top = y + 'px';
+    p.textContent = text;
+    container.appendChild(p);
+    setTimeout(() => p.remove(), 750);
+  }
+}
+const relXY = (el, e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
 /*  Timing game (sweet-spot)  */
 export function openTimingGame(cfg = {}, onFinish = () => {}, onCancel = null) {
   const color = cfg.color || '#4D6BFF';
@@ -129,7 +149,15 @@ export function openTapGame(cfg = {}, onFinish = () => {}, onCancel = null) {
   const fill = modal.querySelector('#tg-fill'), peakEl = modal.querySelector('#tg-peak');
   const timeEl = modal.querySelector('#tg-time'), timeBar = modal.querySelector('#tg-timebar');
   const btn = modal.querySelector('#tg-btn');
-  function tap() { if (done) return; charge = tapHit(charge, gain); peak = Math.max(peak, charge); taps++; if (btn) { btn.classList.remove('tap-bump'); void btn.offsetWidth; btn.classList.add('tap-bump'); } }
+  function tap() {
+    if (done) return;
+    charge = tapHit(charge, gain); peak = Math.max(peak, charge); taps++;
+    if (btn) { btn.classList.remove('tap-bump'); void btn.offsetWidth; btn.classList.add('tap-bump'); }
+    if (taps % 4 === 0) {
+      const card = modal.querySelector('.tap-content');
+      if (card) burstAt(card, card.clientWidth * (0.2 + Math.random() * 0.6), 70, charge > 0.8 ? '🚀' : charge > 0.5 ? '🔥' : '✨');
+    }
+  }
   if (btn) btn.onclick = tap;
 
   function loop(ts) {
@@ -255,9 +283,10 @@ export function openClickRush(cfg = {}, onFinish = () => {}, onCancel = null) {
   </div>`;
   const area = modal.querySelector('#cr-area');
 
-  function hit(t) {
+  function hit(t, e) {
     if (over) return;
     if (t._die) clearTimeout(t._die);
+    if (e && area) { const [x, y] = relXY(area, e); burstAt(area, x, y, '💥', '+1'); }
     t.remove(); if (active === t) active = null;
     hits++; logLines.unshift(makeLog(rand(logs))); if (logLines.length > 7) logLines.pop();
     const term = modal.querySelector('#cr-term'); if (term) term.innerHTML = termHTML();
@@ -269,7 +298,7 @@ export function openClickRush(cfg = {}, onFinish = () => {}, onCancel = null) {
     t.type = 'button'; t.className = 'click-target'; t.style.setProperty('--tc', color);
     t.style.left = (8 + Math.random() * 80) + '%';
     t.style.top  = (10 + Math.random() * 74) + '%';
-    t.addEventListener('click', (e) => { e.stopPropagation(); hit(t); });
+    t.addEventListener('click', (e) => { e.stopPropagation(); hit(t, e); });
     area.appendChild(t); active = t;
     t._die = setTimeout(() => { if (t.parentNode) t.remove(); if (active === t) active = null; }, life * 1000);
   }
@@ -284,4 +313,158 @@ export function openClickRush(cfg = {}, onFinish = () => {}, onCancel = null) {
     if (timeLeft <= 0) finish();
   }
   rafId = requestAnimationFrame(loop);
+}
+
+/*  Bug Squash  whack-a-mole with scurrying bugs; several live at once.
+    Miss too many and they multiply. Used for refactors & PR disasters.  */
+export function openSquashGame(cfg = {}, onFinish = () => {}, onCancel = null) {
+  const color = cfg.color || '#FF9A1F';
+  const title = cfg.title || 'Bug Squash';
+  const duration = cfg.duration || 10;
+  const target = cfg.targetHits || 14;
+  const note = cfg.note || 'Squash the bugs before they unionize. Escapees spawn friends.';
+  const emoji = cfg.emoji || '🐛';
+  const hitEmoji = cfg.hitEmoji || '💥';
+  const unit = cfg.unit || 'bugs squashed';
+  if (!hasDOM) { onFinish(0.6); return; }
+  const modal = freshModal('minigame-squash-modal');
+  let timeLeft = duration, hits = 0, escapes = 0, over = false, rafId = null, last = null, spawnT = 0;
+  const bugs = new Set();
+  let combo = 0, comboT = 0;
+
+  const keyHandler = (e) => { if (e.code === 'Escape') cancel(); };
+  window.addEventListener('keydown', keyHandler);
+  function cleanup() { over = true; if (rafId) cancelAnimationFrame(rafId); window.removeEventListener('keydown', keyHandler); bugs.forEach(b => b.remove()); bugs.clear(); }
+  function finish() { if (over) return; cleanup(); modal.remove(); onFinish(Math.max(0, Math.min(1, hits / target))); }
+  function cancel() { if (over) return; cleanup(); modal.remove(); if (onCancel) onCancel(); }
+
+  modal.innerHTML = `<div class="modal-content click-content squash-content" style="--tg:${color}">
+    <div class="bs-head"><h2>${title}</h2><div class="bs-round" id="sq-time">${duration.toFixed(1)}s</div></div>
+    <p class="modal-note">${note}</p>
+    <div class="click-area squash-area" id="sq-area"></div>
+    <div class="tap-timebar"><i id="sq-bar"></i></div>
+    <div class="type-count"><b id="sq-hits">0</b> ${unit} <span class="squash-combo" id="sq-combo"></span></div>
+  </div>`;
+  const area = modal.querySelector('#sq-area');
+
+  function squash(b, e) {
+    if (over || b._dead) return;
+    b._dead = true;
+    bugs.delete(b);
+    hits++;
+    combo++; comboT = 1.2;
+    const [x, y] = e ? relXY(area, e) : [parseFloat(b.style.left), parseFloat(b.style.top)];
+    burstAt(area, x, y, hitEmoji, combo >= 3 ? `x${combo}!` : '+1');
+    b.classList.add('squashed');
+    setTimeout(() => b.remove(), 200);
+    const hc = modal.querySelector('#sq-hits'); if (hc) hc.textContent = hits;
+  }
+  function spawn(n = 1) {
+    if (!area) return;
+    for (let i = 0; i < n; i++) {
+      if (bugs.size >= 5) return;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'squash-bug';
+      b.textContent = emoji;
+      b.style.left = (8 + Math.random() * 84) + '%';
+      b.style.top  = (12 + Math.random() * 70) + '%';
+      b.style.setProperty('--wander-x', (Math.random() * 60 - 30) + 'px');
+      b.style.setProperty('--wander-y', (Math.random() * 40 - 20) + 'px');
+      b.addEventListener('click', (e) => { e.stopPropagation(); squash(b, e); });
+      area.appendChild(b); bugs.add(b);
+      const life = 1.4 + Math.random() * 0.9;
+      b._die = setTimeout(() => {
+        if (over || b._dead) return;
+        b.remove(); bugs.delete(b);
+        escapes++; combo = 0;
+        // an escapee files two more bug reports
+        spawn(Math.min(2, 5 - bugs.size));
+      }, life * 1000);
+    }
+  }
+  function loop(ts) {
+    if (over) return;
+    rafId = requestAnimationFrame(loop);
+    const now = ts / 1000; const dt = last == null ? 0 : Math.max(0, Math.min(0.05, now - last)); last = now;
+    timeLeft -= dt; spawnT -= dt; comboT -= dt;
+    if (comboT <= 0) combo = 0;
+    if (spawnT <= 0) { spawn(); spawnT = 0.5 + Math.random() * 0.45; }
+    const cb = modal.querySelector('#sq-combo'); if (cb) cb.textContent = combo >= 3 ? `COMBO x${combo}` : '';
+    const tb = modal.querySelector('#sq-bar'); if (tb) tb.style.width = Math.max(0, (timeLeft / duration) * 100) + '%';
+    const tt = modal.querySelector('#sq-time'); if (tt) tt.textContent = Math.max(0, timeLeft).toFixed(1) + 's';
+    if (timeLeft <= 0) finish();
+  }
+  rafId = requestAnimationFrame(loop);
+}
+
+/*  Pour game  a fill line rises and falls; stop it inside the band.
+    3 rounds. Used for coffee runs and anything "stop at the right moment".  */
+export function openPourGame(cfg = {}, onFinish = () => {}, onCancel = null) {
+  const color = cfg.color || '#B07B4F';
+  const title = cfg.title || 'Coffee Run';
+  const note = cfg.note || 'Stop the pour inside the band. Overfill and HR hears about it.';
+  const ROUNDS = cfg.rounds || 3;
+  const emoji = cfg.emoji || '☕';
+  if (!hasDOM) { onFinish(0.6); return; }
+  const modal = freshModal('minigame-pour-modal');
+  let round = 0, level = 0, dir = 1, speed = 1.1, bandLo = 55, bandHi = 80, stopped = false, done = false, rafId = null, last = null;
+  const scores = [];
+
+  const keyHandler = (e) => { if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); stop(); } else if (e.code === 'Escape') cancel(); };
+  window.addEventListener('keydown', keyHandler);
+  function cleanup() { done = true; if (rafId) cancelAnimationFrame(rafId); window.removeEventListener('keydown', keyHandler); }
+  function finish() { if (done) return; cleanup(); modal.remove(); onFinish(scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0.4); }
+  function cancel() { if (done) return; cleanup(); modal.remove(); if (onCancel) onCancel(); }
+
+  function render() {
+    const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    modal.innerHTML = `<div class="modal-content pour-content" style="--tg:${color}">
+      <div class="bs-head"><h2>${emoji} ${title}</h2><div class="bs-round">Cup ${Math.min(round + 1, ROUNDS)}/${ROUNDS}</div></div>
+      <p class="modal-note">${note}</p>
+      <div class="pour-stage">
+        <div class="pour-cup">
+          <div class="pour-band" style="bottom:${bandLo}%;height:${bandHi - bandLo}%"></div>
+          <div class="pour-fill" id="pour-fill" style="height:${level}%"></div>
+        </div>
+      </div>
+      <div class="bs-foot"><div class="bs-grade">${scores.length ? 'Grade ' + grade(avg) : ''}</div><button class="btn btn-primary pour-stop" type="button">STOP POUR</button></div>
+      <div class="bs-pips">${Array.from({ length: ROUNDS }, (_, i) => `<span class="${i < scores.length ? (scores[i] >= .62 ? 'hit' : 'miss') : ''}"></span>`).join('')}</div>
+    </div>`;
+    modal.querySelector('.pour-stop').onclick = stop;
+  }
+  function newRound() {
+    stopped = false;
+    const bandSize = Math.max(12, 24 - round * 5);
+    bandLo = 35 + Math.random() * (92 - bandSize - 35);
+    bandHi = bandLo + bandSize;
+    speed = (46 + round * 16) * (Math.random() < 0.5 ? 1 : 1.15);
+    level = 0; dir = 1; last = null;
+    render();
+    rafId = requestAnimationFrame(loop);
+  }
+  function stop() {
+    if (stopped || done) return; stopped = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    const mid = (bandLo + bandHi) / 2, half = (bandHi - bandLo) / 2;
+    const d = Math.abs(level - mid);
+    const overfill = level > bandHi;
+    const s = overfill ? Math.max(0, 0.4 - (level - bandHi) / 30) : (d <= half ? 1 - (d / half) * 0.25 : Math.max(0, 0.75 - (d - half) / 35));
+    scores.push(s);
+    const cup = modal.querySelector('.pour-cup');
+    if (cup) cup.classList.add(s >= 0.62 ? 'pour-good' : 'pour-bad');
+    const stage = modal.querySelector('.pour-stage');
+    if (stage) burstAt(stage, stage.clientWidth / 2, 30, s >= 0.9 ? '🌟' : s >= 0.62 ? emoji : '💦', s >= 0.62 ? 'nice pour' : overfill ? 'OVERFLOW' : 'weak sauce');
+    round++;
+    setTimeout(() => { if (round >= ROUNDS) finish(); else newRound(); }, 700);
+  }
+  function loop(ts) {
+    if (done || stopped) return;
+    rafId = requestAnimationFrame(loop);
+    const now = ts / 1000; const dt = last == null ? 0 : Math.max(0, Math.min(0.05, now - last)); last = now;
+    level += dir * speed * dt;
+    if (level >= 100) { level = 100; dir = -1; }
+    else if (level <= 0) { level = 0; dir = 1; }
+    const f = modal.querySelector('#pour-fill'); if (f) f.style.height = level + '%';
+  }
+  newRound();
 }

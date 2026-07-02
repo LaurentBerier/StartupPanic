@@ -6,7 +6,7 @@
       "name": "startup-panic",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["-y", "http-server", "-c-1"],
-      "port": 8742
+      "port": 8756
     }
   ]
 }

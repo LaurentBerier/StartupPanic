@@ -199,6 +199,7 @@ const ENDINGS = {
   acquisition: { tone: 'good',  badge: 'EXIT',     tag: 'MEGA ACQUISITION', title: ['ACQUIRED', ''],         sub: 'A bigger, more boring company bought you for a number<br/>that made the lawyers gasp. They will shut it down in 18 months.', cod: ['Sold at the exact local maximum, somehow', 'Bought for the talent, gutted for the patents', 'Cashed out the instant the music slowed'] },
   // losses
   bankruptcy:  { tone: 'bad',   badge: 'DECEASED', tag: 'BANK ACCOUNT: $0', title: ['CASH', 'DEPLETED'],       sub: 'Payroll bounced. The espresso machine has been repossessed.<br/>Your employees are already posting "open to work".', cod: ['Ran out of money mid-tweet', 'Burn rate achieved literal combustion', 'Couldn\'t make payroll or the AWS bill', 'Spent the runway on a Sphere ad and hubris', 'Confused "runway" with "infinite runway" one too many times', 'The free trial was for the whole company', 'Out-spent by the office cold brew budget'] },
+  repo:        { tone: 'bad',   badge: 'REPOSSESSED', tag: 'ASSETS: A VAN, LEAVING', title: ['EVERYTHING', 'REPO\'D'], sub: 'You watched them carry out the desks while you were mid-standup.<br/>The garage echoes now. Even the echo is leased.', cod: ['The repo men left a 5-star review: "easy pickup"', 'Tried to expense the repo van as "logistics"', 'The desks were repossessed mid-standup', 'Pitched the repo crew; two of them said "interesting"', 'The company sign was the last thing they took'] },
   cancelled:   { tone: 'bad',   badge: 'CANCELLED', tag: 'TRENDING: #1',   title: ['PUBLICLY', 'CANCELLED'],   sub: 'One screenshot did what no competitor could.<br/>You are trending. It is not the good kind.', cod: ['One screenshot ended the entire Series C', 'Boycotted into a fine, marketable mist', 'The founder said the unsayable on a livestream', 'Trended for nine hours, dead by the tenth', 'The apology video needed its own apology video', 'Got ratioed by an account with an egg avatar'] },
   hearing:     { tone: 'bad',   badge: 'SUBPOENAED', tag: 'C-SPAN: LIVE',  title: ['CONGRESSIONAL', 'HEARING'], sub: 'A senator held up a printout of your privacy policy.<br/>You were asked to define your own business model under oath. You could not.', cod: ['Subpoenaed before the product even shipped', 'A senator held up a printout of the privacy policy', 'The whistleblower, it turns out, kept receipts'] },
   prison:      { tone: 'bad',   badge: 'INDICTED', tag: 'CASE NO. 24-CR-1138', title: ['FEDERAL', 'PRISON'],  sub: 'It turns out the "automation" was 700 contractors in a basement.<br/>The SEC found the revenue. There was no revenue.', cod: ['The "automation" was 700 contractors in a basement', 'The SEC noticed the revenue was imaginary', 'Wired the runway to a "business yacht"'] },
@@ -221,6 +222,7 @@ export function chooseEnding(state, won) {
 
   if (avgScam >= 58 && shipped.length >= 2) return 'prison';
   if (avgEth  >= 60 && shipped.length >= 2) return 'hearing';
+  if (state.gameOverCause === 'repo') return 'repo';
   if (state.hype <= 8) return 'cancelled';
   if (burned >= Math.max(2, Math.ceil(state.employees.length * 0.6))) return 'burnout';
   return 'bankruptcy';
